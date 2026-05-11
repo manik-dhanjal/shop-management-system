@@ -1,0 +1,6 @@
+[submodule "backend"]
+	path = backend
+	url = https://github.com/manik-dhanjal/Shop-Management-System-API.git
+[submodule "frontend"]
+	path = frontend
+	url = git@github.com:manik-dhanjal/shop-management-system-ui.git

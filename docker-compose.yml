@@ -1,0 +1,68 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: sms-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  seeder:
+    build:
+      context: ./docker/seed
+    container_name: sms-seeder
+    environment:
+      MONGO_URL: mongodb://mongodb:27017/shop-management-system
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+    container_name: sms-backend
+    ports:
+      - "3001:3000"
+    environment:
+      PORT: "3000"
+      SMS_DB_URL: "mongodb://mongodb:27017/shop-management-system"
+      MONGO_LOGGER_LEVEL: "info"
+      FRONTEND_URL: "http://localhost"
+      CLOUDINARY_CLOUD_NAME: "${CLOUDINARY_CLOUD_NAME}"
+      CLOUDINARY_API_KEY: "${CLOUDINARY_API_KEY}"
+      CLOUDINARY_API_SECRET: "${CLOUDINARY_API_SECRET}"
+      USER_JWT_SECRET: "${USER_JWT_SECRET}"
+      USER_ACCESS_JWT_EXPIRES_IN: "5m"
+      USER_REFRESH_JWT_EXPIRES_IN: "24h"
+      USER_PASSWORD_SALT_ROUNDS: "10"
+      GST_BASE_URL: "${GST_BASE_URL:-https://api.whitebooks.in}"
+      GST_PROVIDER_CLIENT_ID: "${GST_PROVIDER_CLIENT_ID}"
+      GST_PROVIDER_CLIENT_SECRET: "${GST_PROVIDER_CLIENT_SECRET}"
+      GST_PROVIDER_IP_ADDRESS: "${GST_PROVIDER_IP_ADDRESS}"
+      GST_REQUEST_TIMEOUT: "30000"
+      GST_REQUEST_RETRY_ATTEMPTS: "3"
+      GST_REQUEST_RETRY_DELAY: "1000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: "http://localhost:3000"
+    container_name: sms-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongodb_data:
