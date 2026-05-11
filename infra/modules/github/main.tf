@@ -11,6 +11,11 @@ locals {
   repos = [var.backend_repo, var.frontend_repo]
 }
 
+# Required so the provider knows which owner to scope repo lookups to
+provider "github" {
+  owner = var.github_owner
+}
+
 # stage: require PR, no force push, no direct commits
 resource "github_branch_protection" "stage" {
   for_each = toset(local.repos)

@@ -56,6 +56,8 @@ resource "render_web_service" "backend" {
   plan   = "free"
   region = "singapore"
 
+  start_command = "node dist/main"
+
   runtime_source = {
     native_runtime = {
       auto_deploy   = true
@@ -63,7 +65,6 @@ resource "render_web_service" "backend" {
       build_command = "npm ci && npm run build"
       repo_url      = var.backend_repo_url
       runtime       = "node"
-      start_command = "node dist/main"
     }
   }
 
@@ -78,13 +79,13 @@ resource "render_web_service" "backend" {
 }
 
 output "service_url_dev" {
-  value = "https://${render_web_service.backend["dev"].url}"
+  value = render_web_service.backend["dev"].url
 }
 
 output "service_url_stage" {
-  value = "https://${render_web_service.backend["stage"].url}"
+  value = render_web_service.backend["stage"].url
 }
 
 output "service_url_prod" {
-  value = "https://${render_web_service.backend["prod"].url}"
+  value = render_web_service.backend["prod"].url
 }

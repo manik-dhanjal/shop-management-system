@@ -68,9 +68,11 @@ module "render" {
   db_url_stage = module.atlas.db_url_stage
   db_url_prod  = module.atlas.db_url_prod
 
-  frontend_url_dev   = "https://sms-develop.vercel.app"
-  frontend_url_stage = "https://sms-stage.vercel.app"
-  frontend_url_prod  = module.vercel.production_url
+  # Vercel preview URLs follow <project>-git-<branch>-<owner>.vercel.app pattern,
+  # but CORS only needs the production domain for prod; previews are permissive.
+  frontend_url_dev   = "https://shop-management-system-git-develop-manikdhanjal217.vercel.app"
+  frontend_url_stage = "https://shop-management-system-git-stage-manikdhanjal217.vercel.app"
+  frontend_url_prod  = "https://shop-management-system.vercel.app"
 }
 
 module "vercel" {
@@ -87,6 +89,7 @@ module "vercel" {
 module "github" {
   source = "./modules/github"
 
-  backend_repo  = "manik-dhanjal/Shop-Management-System-API"
-  frontend_repo = "manik-dhanjal/shop-management-system-ui"
+  github_owner  = "manik-dhanjal"
+  backend_repo  = "Shop-Management-System-API"
+  frontend_repo = "shop-management-system-ui"
 }

@@ -7,3 +7,7 @@ infra/terraform.tfstate
 infra/terraform.tfstate.backup
 infra/terraform.tfvars
 infra/*.tfplan
+
+#docker/seed
+/docker/seed/node_modules
+/docker/seed/package-lock.json
