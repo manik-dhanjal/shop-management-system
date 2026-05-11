@@ -1,6 +1,14 @@
 # Deployment Guide
 
-Three environments — **dev**, **stage**, **prod** — provisioned via Terraform on free-tier services.
+Three environments provisioned via Terraform on free-tier services.
+
+## Live URLs
+
+| Environment | Frontend | Backend |
+|-------------|----------|---------|
+| **Dev** | https://shop-management-system-git-develop-manikdhanjals-projects.vercel.app | https://sms-dev.onrender.com |
+| **Stage** | https://shop-management-system-git-stage-manikdhanjals-projects.vercel.app | https://sms-stage-9e8p.onrender.com |
+| **Prod** | https://shop-management-system.vercel.app | https://sms-prod.onrender.com |
 
 ## Services
 
@@ -8,86 +16,134 @@ Three environments — **dev**, **stage**, **prod** — provisioned via Terrafor
 |-----------|---------|-----------|
 | Backend ×3 | [Render](https://render.com) | 750 hrs/month shared; sleeps after 15 min idle |
 | Frontend | [Vercel](https://vercel.com) | Unlimited hobby deployments |
-| Database | [MongoDB Atlas](https://cloud.mongodb.com) | 1 M0 cluster, 512 MB storage |
+| Database | [MongoDB Atlas](https://cloud.mongodb.com) | M0 cluster, 512 MB storage |
 
-## Branch → Environment mapping
+---
 
-| Branch | Environment | Backend | Frontend |
-|--------|-------------|---------|----------|
-| `develop` | Dev | Render `sms-dev` | Vercel preview |
-| `stage` | Stage | Render `sms-stage` | Vercel preview |
-| `master` | Prod | Render `sms-prod` | Vercel production |
+## Day-to-day workflow
 
-## One-time setup
+### Developing a feature (→ Dev)
 
-### 1. Prerequisites
+```bash
+# 1. Branch off develop
+git checkout develop
+git pull origin develop
+git checkout -b feature/my-feature
 
-Install tools:
+# 2. Make changes, commit, push
+git push origin feature/my-feature
+
+# 3. Open a PR into develop on GitHub
+# Once merged → Render sms-dev and Vercel dev preview auto-deploy
+```
+
+### Promoting to Stage (monthly regression)
+
+```bash
+# Open a PR from develop → stage on GitHub
+# Merge after review → Render sms-stage and Vercel stage preview auto-deploy
+# Run regression testing on the stage URLs above
+```
+
+### Releasing to Production
+
+```bash
+# Open a PR from stage → master on GitHub
+# Requires: 1 approving review + passing CI
+# Merge → Render sms-prod and Vercel production auto-deploy
+```
+
+> **Branch protection summary:**
+> - `stage` — PR required, no force push
+> - `master` — PR required, 1 approving review, CI must pass, no force push
+
+---
+
+## Seeding a database
+
+The seed script creates the demo shop, admin user, 5 products, and 5 customers. It is idempotent — safe to run multiple times.
+
+```bash
+# Install seed dependencies once
+cd docker/seed && npm install
+
+# Seed a specific environment
+MONGO_URL="<connection-string>" node docker/seed/seed.js
+```
+
+Connection string format:
+```
+mongodb+srv://<user>:<password>@sms-cluster.wff27ni.mongodb.net/<db>?retryWrites=true&w=majority
+```
+
+DB users and passwords are in `infra/terraform.tfstate` (sensitive — never commit this file).
+
+---
+
+## First-time infrastructure setup
+
+### Prerequisites
 
 ```bash
 brew install terraform gh
-```
-
-Log in to GitHub CLI:
-
-```bash
 gh auth login
 ```
 
-### 2. Collect API keys
+### Steps
 
-| Key | Where to find it |
-|-----|-----------------|
-| `atlas_org_id` | Atlas → Organizations → Settings |
-| `atlas_public_key` / `atlas_private_key` | Atlas → Access Manager → API Keys → Create |
-| `render_api_key` | Render → Account Settings → API Keys |
-| `render_owner_id` | Render → Account Settings → owner ID (starts with `usr-` or `tea-`) |
-| `vercel_api_token` | Vercel → Settings → Tokens |
-| `github_token` | GitHub → Settings → Developer settings → PAT (scopes: `repo`, `admin:repo_hook`) |
+**1. Install the Vercel GitHub integration**
 
-App secrets come from your local `.env` file.
+Before running Terraform, go to https://vercel.com/new and connect your GitHub account. Terraform cannot create the Vercel project without this.
 
-### 3. Fill in tfvars
+**2. Grant Atlas API key the Project Creator role**
+
+In MongoDB Atlas → Access Manager → API Keys, ensure the key has the **Organization Project Creator** role.
+
+**3. Fill in secrets**
 
 ```bash
 cp infra/terraform.tfvars.example infra/terraform.tfvars
-# edit infra/terraform.tfvars with real values
+# edit infra/terraform.tfvars
 ```
 
-### 4. Apply
+| Variable | Where to find it |
+|----------|-----------------|
+| `atlas_org_id` | Atlas → Organizations → Settings |
+| `atlas_public_key` / `atlas_private_key` | Atlas → Access Manager → API Keys |
+| `render_api_key` | Render → Account Settings → API Keys |
+| `render_owner_id` | Render → Account Settings (starts with `usr-` or `tea-`) |
+| `vercel_api_token` | Vercel → Settings → Tokens |
+| `github_token` | GitHub → Settings → Developer settings → PAT (`repo`, `admin:repo_hook`) |
+
+**4. Apply**
 
 ```bash
 cd infra
 terraform init
-terraform plan   # review what will be created
 terraform apply
 ```
 
-Terraform prints the backend and frontend URLs when done.
+**5. Seed all databases**
 
-### 5. Configure Vercel GitHub integration
+```bash
+cd docker/seed && npm install && cd ../..
 
-Vercel needs permission to deploy from GitHub. On first run, visit the Vercel dashboard and connect the GitHub app to the `shop-management-system-ui` repository.
-
-## Upgrading prod from free tier
-
-If cold-start latency on Render becomes a problem for prod users, upgrade `sms-prod` to the $7/month Starter plan in the Render dashboard — no Terraform change needed.
-
-## Day-to-day workflow
-
-```
-feature/* → develop (auto-deploys to dev)
-develop   → stage   (monthly; triggers regression on stage)
-stage     → master  (release; deploys to prod)
+# get credentials from terraform state, then:
+MONGO_URL="..." node docker/seed/seed.js   # run once per environment
 ```
 
-`stage` and `master` require a pull request. `master` additionally requires one approving review and a passing CI check.
+---
+
+## Upgrading Prod from free tier
+
+If cold-start latency (~30s) becomes a problem, upgrade `sms-prod` in the Render dashboard to the **$7/month Starter** plan — always-on, no sleep. No Terraform change needed.
+
+---
 
 ## Tearing down
 
 ```bash
-cd infra
-terraform destroy
+cd infra && terraform destroy
 ```
 
-This deletes all Render services, the Vercel project, Atlas cluster, and branch protection rules. MongoDB data is lost. The GitHub repos themselves are not deleted.
+Deletes all Render services, Vercel project, Atlas cluster, and branch protection rules. MongoDB data is permanently lost. The GitHub repos are not deleted.
