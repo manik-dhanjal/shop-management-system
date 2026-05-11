@@ -4,11 +4,11 @@ Manage inventory, orders, customers, and GST billing all in one place. Docker-po
 
 ## Live Environments
 
-| Environment | Frontend | Backend |
-|-------------|----------|---------|
-| **Dev** | [shop-management-system-git-develop-manikdhanjals-projects.vercel.app](https://shop-management-system-git-develop-manikdhanjals-projects.vercel.app) | https://sms-dev.onrender.com |
-| **Stage** | [shop-management-system-git-stage-manikdhanjals-projects.vercel.app](https://shop-management-system-git-stage-manikdhanjals-projects.vercel.app) | https://sms-stage-9e8p.onrender.com |
-| **Prod** | [shop-management-system.vercel.app](https://shop-management-system.vercel.app) | https://sms-prod.onrender.com |
+| Environment | Frontend                                                                                                                                             | Backend                             |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| **Dev**     | [shop-management-system-git-develop-manikdhanjals-projects.vercel.app](https://shop-management-system-git-develop-manikdhanjals-projects.vercel.app) | https://sms-dev.onrender.com        |
+| **Stage**   | [shop-management-system-git-stage-manikdhanjals-projects.vercel.app](https://shop-management-system-git-stage-manikdhanjals-projects.vercel.app)     | https://sms-stage-9e8p.onrender.com |
+| **Prod**    | [shop-management-system-beta.vercel.app/](https://shop-management-system-beta.vercel.app)                                                            | https://sms-prod.onrender.com       |
 
 > Render free tier sleeps after 15 min of inactivity — first request takes ~30s to wake up.
 
@@ -57,12 +57,12 @@ docker compose up --build
 
 ### Services (local)
 
-| Service | Production | Dev (hot reload) |
-|---------|------------|-----------------|
-| Frontend | http://localhost:3000 | http://localhost:5173 |
-| API | http://localhost:3001 | http://localhost:3001 |
+| Service  | Production                 | Dev (hot reload)           |
+| -------- | -------------------------- | -------------------------- |
+| Frontend | http://localhost:3000      | http://localhost:5173      |
+| API      | http://localhost:3001      | http://localhost:3001      |
 | API Docs | http://localhost:3001/docs | http://localhost:3001/docs |
-| MongoDB | localhost:27017 | localhost:27017 |
+| MongoDB  | localhost:27017            | localhost:27017            |
 
 ## Branch → Environment
 
