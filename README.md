@@ -2,7 +2,30 @@
 
 Manage inventory, orders, customers, and GST billing all in one place. Docker-powered setup gets you running in seconds.
 
-## Quick Start
+## Setup
+
+### 1. Clone with submodules
+
+```bash
+git clone --recurse-submodules https://github.com/manik-dhanjal/shop-management-system.git
+cd SMS
+```
+
+If you already cloned without `--recurse-submodules`:
+
+```bash
+git submodule update --init --recursive
+```
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Fill in the real values in `.env` (Cloudinary, JWT secret, GST credentials).
+
+### 3. Start
 
 **Production:**
 
@@ -32,6 +55,14 @@ That's it. The system initializes with a demo database and seed data.
 ```
 Email: admin@sms.com
 Password: Admin@123
+```
+
+## Pulling Latest Changes
+
+To pull updates from both submodules after someone pushes to backend or frontend:
+
+```bash
+git submodule update --remote --merge
 ```
 
 ## Reset to Fresh Start
