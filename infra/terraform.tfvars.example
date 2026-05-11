@@ -1,0 +1,25 @@
+# MongoDB Atlas — https://cloud.mongodb.com → Access Manager → API Keys
+atlas_org_id      = ""
+atlas_public_key  = ""
+atlas_private_key = ""
+
+# Render — https://dashboard.render.com → Account Settings → API Keys
+render_api_key  = ""
+render_owner_id = ""   # Settings → Account → Owner ID (starts with "usr-" or "tea-")
+
+# Vercel — https://vercel.com/account/tokens
+vercel_api_token = ""
+vercel_team_id   = ""  # Leave empty for personal accounts
+
+# GitHub — PAT with scopes: repo, admin:repo_hook
+github_token = ""
+
+# App secrets (copied from your .env)
+jwt_secret            = ""
+cloudinary_cloud_name = ""
+cloudinary_api_key    = ""
+cloudinary_api_secret = ""
+
+gst_provider_client_id     = ""
+gst_provider_client_secret = ""
+gst_provider_ip_address    = ""
