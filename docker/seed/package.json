@@ -1,7 +1,12 @@
 {
   "name": "sms-seeder",
   "version": "1.0.0",
+  "description": "SMS bootstrap seeder. Runs once via docker-compose to create admin user, demo shop, fixture products with inventory batches, and 50 demo customers.",
+  "scripts": {
+    "start": "node seed.js"
+  },
   "dependencies": {
+    "@faker-js/faker": "^9.0.0",
     "bcryptjs": "^2.4.3",
     "mongodb": "^6.0.0"
   }
