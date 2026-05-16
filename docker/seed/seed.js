@@ -16,10 +16,17 @@
  *      API-created customer continues the run (e.g. CUST/0051)
  *   6. 2–8 randomized inventory batches per fixture product, with
  *      product.stock + product.inventory[] kept in sync
+ *   7. SUPPLIER_COUNT external supplier shops linked into Demo Shop's
+ *      suppliers[], plus DISCOVERY_SUPPLIER_COUNT extra unlinked external
+ *      shops + 2 SELF_OPERATED "in-system" shops so the find-supplier
+ *      picker has something to surface in its suggestions/results rails.
+ *      SupplierCounter primed to the linked count.
  *
  * Env overrides:
  *   MONGO_URL                 mongodb://mongodb:27017/shop-management-system
  *   CUSTOMER_COUNT            50
+ *   SUPPLIER_COUNT            15   (linked into Demo Shop)
+ *   DISCOVERY_SUPPLIER_COUNT  20   (unlinked, for search/suggestions)
  *   INVENTORY_PER_PRODUCT_MIN 2
  *   INVENTORY_PER_PRODUCT_MAX 8
  */
@@ -34,6 +41,11 @@ const MONGO_URL =
 const SHOP_ID = new ObjectId('000000000000000000000001');
 const USER_ID = new ObjectId('000000000000000000000002');
 const CUSTOMER_COUNT = parseInt(process.env.CUSTOMER_COUNT || '50', 10);
+const SUPPLIER_COUNT = parseInt(process.env.SUPPLIER_COUNT || '15', 10);
+const DISCOVERY_SUPPLIER_COUNT = parseInt(
+  process.env.DISCOVERY_SUPPLIER_COUNT || '20',
+  10,
+);
 const INV_MIN = parseInt(process.env.INVENTORY_PER_PRODUCT_MIN || '2', 10);
 const INV_MAX = parseInt(process.env.INVENTORY_PER_PRODUCT_MAX || '8', 10);
 
@@ -65,6 +77,22 @@ const CustomerSource = {
   ONLINE: 'ONLINE',
   CAMPAIGN: 'CAMPAIGN',
   EXISTING: 'EXISTING',
+};
+
+const ShopKind = {
+  SELF_OPERATED: 'SELF_OPERATED',
+  EXTERNAL_SUPPLIER: 'EXTERNAL_SUPPLIER',
+};
+
+const SupplierStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  BLOCKED: 'BLOCKED',
+};
+
+const GstStatus = {
+  ACTIVE: 'Active',
+  INACTIVE: 'Inactive',
 };
 
 // ---- reference data --------------------------------------------------------
@@ -304,6 +332,138 @@ const buildBusinessUnregistered = (now) => {
   };
 };
 
+// ---- supplier payload builders --------------------------------------------
+
+const SUPPLIER_COMPANY_SUFFIX = [
+  'Traders',
+  'Industries',
+  'Wholesale',
+  'Distributors',
+  'Manufacturing',
+  'Pvt Ltd',
+  'Enterprises',
+];
+
+const SUPPLIER_TAGS_POOL = [
+  'Preferred',
+  'Bulk Rate',
+  'Local',
+  'Imports',
+  'Manufacturer',
+  'Backup',
+];
+
+const randomSupplierTags = () => {
+  if (Math.random() < 0.5) return [];
+  const count = 1 + Math.floor(Math.random() * 2);
+  const picks = new Set();
+  while (picks.size < count) picks.add(pickOne(SUPPLIER_TAGS_POOL));
+  return [...picks];
+};
+
+const buildExternalSupplierShop = (now) => {
+  const s = pickOne(INDIAN_STATES);
+  const base = faker.company.name().split(' ')[0];
+  const name = `${base} ${pickOne(SUPPLIER_COMPANY_SUFFIX)}`;
+  const hasGstin = Math.random() < 0.75;
+  const gstin = hasGstin ? randomGstinForState(s.code) : undefined;
+  return {
+    _id: new ObjectId(),
+    name,
+    kind: ShopKind.EXTERNAL_SUPPLIER,
+    location: randomAddress(s),
+    phone: randomIndianPhone(),
+    email: faker.internet.email({ firstName: 'sales', lastName: base }),
+    alternatePhones: [],
+    alternateEmails: [],
+    contactPersonName: faker.person.fullName(),
+    contactPersonDesignation: pickOne([
+      'Sales Manager',
+      'Owner',
+      'Account Manager',
+      'Regional Head',
+    ]),
+    contactPersons: [],
+    gstDetails: gstin
+      ? {
+          gstin,
+          legalName: name.toUpperCase(),
+          tradeName: name,
+          address: `${faker.location.streetAddress()}, ${s.city}`,
+          state: s.state,
+          registrationDate: faker.date.past({ years: 5 }),
+          status: GstStatus.ACTIVE,
+          username: faker.internet.userName(),
+          email: faker.internet.email(),
+          panCardNumber: gstin.slice(2, 12),
+        }
+      : undefined,
+    isDeleted: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+};
+
+const buildInSystemSupplierShop = (now, label) => {
+  const s = pickOne(INDIAN_STATES);
+  return {
+    _id: new ObjectId(),
+    name: `${label} Tenant Shop`,
+    kind: ShopKind.SELF_OPERATED,
+    location: randomAddress(s),
+    phone: randomIndianPhone(),
+    email: faker.internet.email(),
+    alternatePhones: [],
+    alternateEmails: [],
+    contactPersons: [],
+    suppliers: [],
+    isDeleted: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+};
+
+const padSupplierCode = (n) => `SUP/${String(n).padStart(4, '0')}`;
+
+const buildSupplierLink = (supplierShopId, codeNumber, now) => ({
+  _id: new ObjectId(),
+  supplierShop: supplierShopId,
+  supplierCode: padSupplierCode(codeNumber),
+  alias: undefined,
+  status: pickWeighted([
+    { value: SupplierStatus.ACTIVE, weight: 88 },
+    { value: SupplierStatus.INACTIVE, weight: 10 },
+    { value: SupplierStatus.BLOCKED, weight: 2 },
+  ]),
+  paymentTerms: pickWeighted([
+    { value: PaymentTerms.IMMEDIATE, weight: 20 },
+    { value: PaymentTerms.NET_15, weight: 20 },
+    { value: PaymentTerms.NET_30, weight: 40 },
+    { value: PaymentTerms.NET_45, weight: 15 },
+    { value: PaymentTerms.NET_60, weight: 5 },
+  ]),
+  creditLimit: pickOne([50000, 100000, 250000, 500000]),
+  creditPeriodDays: pickOne([15, 30, 45, 60]),
+  openingBalance:
+    Math.random() < 0.3 ? faker.number.int({ min: 0, max: 100000 }) : 0,
+  defaultDiscountPct: pickOne([0, 2, 5, 7, 10]),
+  tags: randomSupplierTags(),
+  notes: Math.random() < 0.3 ? faker.company.catchPhrase() : undefined,
+  primaryContact: undefined,
+  stats: {
+    totalOrders: 0,
+    totalPurchased: 0,
+    totalPaid: 0,
+    outstandingPayable: 0,
+    avgOrderValue: 0,
+  },
+  addedBy: USER_ID,
+  updatedBy: USER_ID,
+  isDeleted: false,
+  createdAt: now,
+  updatedAt: now,
+});
+
 // ---- inventory generation -------------------------------------------------
 
 const buildInventoryBatch = (product, now) => {
@@ -350,6 +510,7 @@ async function seed() {
   await db.collection('shops').insertOne({
     _id: SHOP_ID,
     name: 'Demo Shop',
+    kind: ShopKind.SELF_OPERATED,
     location: {
       address: '123 Market Street',
       city: 'Mumbai',
@@ -359,6 +520,10 @@ async function seed() {
       pinCode: '400001',
     },
     suppliers: [],
+    alternatePhones: [],
+    alternateEmails: [],
+    contactPersons: [],
+    isDeleted: false,
     createdAt: now,
     updatedAt: now,
   });
@@ -554,6 +719,62 @@ async function seed() {
       $setOnInsert: { createdAt: now },
     },
     { upsert: true },
+  );
+
+  // 7. suppliers ------------------------------------------------------------
+  //   - SUPPLIER_COUNT external supplier Shop docs LINKED to Demo Shop
+  //   - DISCOVERY_SUPPLIER_COUNT extra unlinked externals so the
+  //     find-supplier picker's suggestions/results rails have data
+  //   - 2 SELF_OPERATED "in-system" shops the user can also link
+  //   - SupplierCounter primed to the linked count
+  const linkedExternals = Array.from(
+    { length: SUPPLIER_COUNT },
+    () => buildExternalSupplierShop(now),
+  );
+  const discoveryExternals = Array.from(
+    { length: DISCOVERY_SUPPLIER_COUNT },
+    () => buildExternalSupplierShop(now),
+  );
+  const inSystemSupplierShops = [
+    buildInSystemSupplierShop(now, 'Bharat'),
+    buildInSystemSupplierShop(now, 'Vivek'),
+  ];
+  const allSupplierShops = [
+    ...linkedExternals,
+    ...discoveryExternals,
+    ...inSystemSupplierShops,
+  ];
+  if (allSupplierShops.length) {
+    await db.collection('shops').insertMany(allSupplierShops);
+  }
+
+  // Only the linked externals are pushed onto Demo Shop. Discovery externals
+  // and the in-system shops stay floating for the picker to surface.
+  const supplierLinks = linkedExternals.map((s, i) =>
+    buildSupplierLink(s._id, i + 1, now),
+  );
+  if (supplierLinks.length) {
+    await db.collection('shops').updateOne(
+      { _id: SHOP_ID },
+      { $push: { suppliers: { $each: supplierLinks } } },
+    );
+  }
+  await db.collection('suppliercounters').updateOne(
+    { shop: SHOP_ID },
+    {
+      $set: {
+        shop: SHOP_ID,
+        lastNumber: supplierLinks.length,
+        updatedAt: now,
+      },
+      $setOnInsert: { createdAt: now },
+    },
+    { upsert: true },
+  );
+  console.log(
+    `Created ${linkedExternals.length} linked + ${discoveryExternals.length} discoverable external + ` +
+      `${inSystemSupplierShops.length} in-system supplier shops; ` +
+      `${supplierLinks.length} linked to Demo Shop.`,
   );
 
   await client.close();
