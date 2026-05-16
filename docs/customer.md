@@ -46,11 +46,14 @@ status          enum     ACTIVE | INACTIVE | BLOCKED            default ACTIVE
 #### Contact
 ```
 phone               String   primary (E.164)
-alternatePhones     String[]
+alternatePhones     String[]                  repeater UI in form
 email               String?
-alternateEmails     String[]
-contactPersonName       String?   BUSINESS only
+alternateEmails     String[]                  repeater UI in form
+contactPersonName       String?   BUSINESS only — primary contact
 contactPersonDesignation String?
+contactPersons      Array<{                   additional contacts (BUSINESS)
+  name, designation?, phone?, email?
+}>
 profileImage        ObjectId → MediaMetadata
 ```
 
@@ -154,9 +157,10 @@ Controller: `backend/src/api/customer/customer.controller.ts`, base path
 | POST   | `/`                 | Create; auto-assigns `customerCode`, audits `createdBy`. Enforces unique phone per shop. |
 | PUT    | `/`                 | Upsert by phone (used by the in-modal quick-add on the order page). |
 | GET    | `/code/next`        | **Peek** the next `CUST/NNNN` for the Add form preview. Does not increment. |
+| GET    | `/stats`            | Shop-wide KPI rollup `{ totalCustomers, activeCustomers, withGstin, totalOutstanding }`. Single aggregation, used by the All Customers KPI cards. |
 | GET    | `/:customerId`      | Single customer, populated `profileImage`. Excludes soft-deleted. |
 | PATCH  | `/:customerId`      | Update; audits `updatedBy`. Errors `NotFound` if soft-deleted. |
-| POST   | `/paginated`        | Paginated list + fuzzy search. Accepts `includeDeleted` flag for admin views. |
+| POST   | `/paginated`        | Paginated list + fuzzy search. Accepts `filter` (e.g. `{ status, type }`) and `includeDeleted` flag. |
 | DELETE | `/:customerId`      | Soft-delete by default; hard-delete iff `totalOrders === 0 && outstandingBalance === 0`. Audits `deletedBy`. |
 
 ### Key services
@@ -184,6 +188,14 @@ Controller: `backend/src/api/customer/customer.controller.ts`, base path
   - `generate(shopId)` → atomic `$inc + upsert`
   - `peek(shopId)` → read-only
 
+- **`CustomerService.getShopCustomerStats(shopId)`**
+  - Single `$match` + `$group` aggregation scoped to `{ shop, isDeleted: { $ne: true } }`.
+  - Returns `totalCustomers`, `activeCustomers` (`status === ACTIVE`), `withGstin`
+    (`$type 'string'` on `gstin`), `totalOutstanding`
+    (`$sum $ifNull stats.outstandingBalance, 0`).
+  - Designed to stay O(1) requests regardless of list pagination state — the
+    All Customers KPI cards no longer depend on the visible page.
+
 ### DTO validation highlights
 
 - `IsEnum` on each enum.
@@ -209,15 +221,16 @@ Controller: `backend/src/api/customer/customer.controller.ts`, base path
 
 ## 5. Analytics & GST data flow
 
-Three data sources today:
+Four data sources today:
 
 1. **Stored on Customer (cheap reads, denormalized)** — `stats.*`. Powers
-   the all-customers KPI cards and the detail-page stat strip without
-   aggregating orders on every request.
-2. **Derived from orders on demand** — the Orders tab on the detail page
+   the detail-page stat strip without aggregating orders on every request.
+2. **Shop-wide rollup** — `GET /customer/stats` (single aggregation).
+   Powers the All Customers KPI cards. O(1) regardless of pagination.
+3. **Derived from orders on demand** — the Orders tab on the detail page
    reuses `useGetPaginatedOrders(20, 1, { customer: id })` for that
    customer's history.
-3. **Future analytics endpoints** (not shipped) — RFM scores, cohorts,
+4. **Future analytics endpoints** (not shipped) — RFM scores, cohorts,
    state-wise revenue, aging buckets, top-N by revenue, churn signals.
 
 ### GST filing data — what's stored & why
@@ -242,7 +255,7 @@ Three data sources today:
 
 | Route | File | Notes |
 |---|---|---|
-| `/dashboard/customer/all` | `pages/dashboard/customer/all-customer.page.tsx` | KPI strip, search + status + type filters, table with status / churn badges, row-click → detail, delete confirmation that reads live stats. |
+| `/dashboard/customer/all` | `pages/dashboard/customer/all-customer.page.tsx` | Shop-wide KPI strip (driven by `/stats`), debounced server-side search (400 ms), server-side `status` / `type` filters, table with status / churn badges, row-click → detail, delete confirmation that reads live stats. Loading affordances: spinner inside the search input while pending/refetching, KPI skeleton pulses while stats load, thin `LinearProgress` over the table during background refetches. |
 | `/dashboard/customer/:customerId` | `pages/dashboard/customer/customer-detail.page.tsx` | Header with badges & KPIs; tabs `Overview` (contact / GST / addresses / terms / dates cards) and `Orders` (paginated, filtered by customer). |
 | `/dashboard/customer/add` | `pages/dashboard/customer/add-customer.page.tsx` | Wraps `<CustomerForm>`; on success → detail page. |
 | `/dashboard/customer/:customerId/edit` | `pages/dashboard/customer/edit-customer.page.tsx` | Loads existing customer, flattens populated `profileImage` to id before feeding form. |
@@ -256,17 +269,34 @@ Three data sources today:
   - **GSTIN auto-derive**: a `useWatch` on `gstin` validates against the
     regex and, on full match, sets `pan = gstin[2..12]` and
     `placeOfSupplyStateCode = gstin[0..1]`.
-  - **Type-aware fields**: contact person + designation render only for
-    `type === BUSINESS`.
+  - **Type-aware fields**: primary contact person + designation render only
+    for `type === BUSINESS`.
   - **Auto customer code**: `usePreviewCustomerCode` fills in on a fresh
     form (skipped during edit because `initialCustomerData.customerCode`
     is already set).
+  - **Contact repeaters** (powered by `useFieldArray`):
+    - **Alternate Phone Numbers** — add/remove `PhoneFieldControlled` rows.
+    - **Alternate Emails** — add/remove email rows.
+    - **Additional Contact Persons** (BUSINESS only) — card-per-row with
+      `name`, `designation`, `phone`, `email`. Sits under the primary
+      `contactPersonName`/`contactPersonDesignation` pair.
+  - **`compact` prop** — used by the in-order quick-add modal:
+    - Identity & Contact stay expanded; GST, Billing, Shipping, Business
+      Terms, Notes are wrapped as `collapsible defaultOpen={false}`.
+    - Grids tighten: 3-col → 2-col, 2-col → 1-col (so labels like
+      "Display Name"/"INDIVIDUAL" don't truncate at modal width).
+    - Submit button row becomes `sticky bottom-0` with a matching modal
+      background + top border so "Save Customer" is always visible.
 - `customer-select.component.tsx` — the order-page customer dropdown,
   MUI-outlined styled (covered in `docs/add-order.md`).
-- `customer-select-modal.component.tsx` — wraps `CustomerForm` in a modal
-  for quick-add during order creation; uses the PUT `/customer` upsert.
+- `customer-select-modal.component.tsx` — wraps `CustomerForm` (in
+  `compact` mode) in a modal for quick-add during order creation; uses the
+  PUT `/customer` upsert. Each tab owns its own scroll container — search
+  list scrolls inside its own `h-[55vh]` viewport, add-form is wrapped in
+  a `max-h-[70vh] overflow-y-auto` div — so only one scrollbar shows.
+  Modal is `max-w-[720px]`.
 - `searchable-list-customer.component.tsx` — fuzzy-search list inside the
-  modal.
+  modal. Internal `InfiniteScroll` keyed to a scrollable `h-[55vh]` div.
 
 ### Hooks (`features/customer/hooks/`)
 
@@ -274,9 +304,19 @@ Three data sources today:
 - `use-update-customer.hook.ts` — PATCH `/customer/:id`.
 - `use-delete-customer.hook.ts` — DELETE; removes single-cache + invalidates list.
 - `use-get-customer.hook.ts` — GET single, populated.
-- `use-get-paginated-customers.hook.ts` — POST `/paginated`.
+- `use-get-paginated-customers.hook.ts` — POST `/paginated`. Signature:
+  `(limit, page, search?, sort?, filter?)`. The All Customers page passes
+  `filter: { status, type }` so dropdown filters hit the server, not the
+  current page.
+- `use-customer-stats.hook.ts` — GET `/stats`. Powers the shop-wide KPI
+  cards on All Customers.
 - `use-put-customer.hook.ts` — PUT upsert by phone.
 - `use-preview-customer-code.hook.ts` — GET `/code/next`, peeks next code.
+
+Shared:
+- `shared/hooks/use-debounced-value.hook.ts` — generic
+  `useDebouncedValue(value, delay)` used by All Customers' search box
+  (400 ms).
 
 ### Shared enums (`frontend/src/shared/enums/`)
 
@@ -292,10 +332,18 @@ dropdown display only.
 
 ```ts
 // features/customer/interface/customer.interface.ts
+interface ContactPerson {
+  name: string;
+  designation?: string;
+  phone?: string;
+  email?: string;
+}
 interface Customer {
   _id, customerCode, name, legalName, type, status,
   phone, alternatePhones[], email, alternateEmails[],
-  contactPersonName, contactPersonDesignation, profileImage,
+  contactPersonName, contactPersonDesignation,
+  contactPersons[]: ContactPerson,
+  profileImage,
   gstRegistrationType, gstin, pan, placeOfSupplyStateCode,
   taxInvoicePreference, reverseChargeApplicable, isExempt,
   billingAddress, shippingAddresses[], defaultShippingAddressIndex,
@@ -395,10 +443,11 @@ SHOP_ID=… TOKEN=… npx ts-node -r tsconfig-paths/register \
 4. **Outstanding balance** for the seeded `openingBalance` is included in
    `stats.outstandingBalance` after the **first order is created**, not
    on seed alone (stats subdoc is otherwise zeros for fresh customers).
-5. **Shop-wide KPIs on the all-customers page** are computed from the
-   visible page only (`Active (page)`, `Outstanding (page)`,
-   `with GSTIN (page)`). A dedicated stats endpoint would unlock real
-   shop-wide aggregates without page-scanning.
+5. ~~Shop-wide KPIs on the all-customers page are computed from the
+   visible page only.~~ **Done** — `GET /customer/stats` powers the KPI
+   cards with real shop-wide totals. Stats query is unfiltered by
+   search/filter; if per-filter rollups are ever needed, extend the
+   endpoint to accept the same `filter` / `search` shape as `/paginated`.
 6. **GSTIN lookup against the GST portal** is not wired. `GstModule`
    clients exist in the backend; hooking them into a form button to
    auto-fill `legalName`/`billingAddress`/`status` is a separate task.
@@ -408,9 +457,11 @@ SHOP_ID=… TOKEN=… npx ts-node -r tsconfig-paths/register \
    listed in plan Phase 5, not shipped.
 9. **No reverse-charge / exempt tax UX yet** — flags exist on the schema
    and form, but the order pricing util doesn't read them. Future task.
-10. **`alternatePhones` / `alternateEmails` / multi-shipping addresses**
-    are stored but the form only edits the single primary fields.
-    Add a chip/repeater UI when needed.
+10. **`alternatePhones` / `alternateEmails` / `contactPersons`** are now
+    editable in the form via `useFieldArray` repeaters (under Contact).
+    **Multi-shipping addresses** (`shippingAddresses[]` +
+    `defaultShippingAddressIndex`) are still single-edit only — repeater
+    UI for that is the remaining piece.
 
 ---
 
@@ -461,11 +512,15 @@ frontend/src/features/customer/
 │   ├── use-update-customer.hook.ts
 │   ├── use-delete-customer.hook.ts
 │   ├── use-get-customer.hook.ts
-│   ├── use-get-paginated-customers.hook.ts
+│   ├── use-get-paginated-customers.hook.ts  — (limit, page, search, sort, filter)
+│   ├── use-customer-stats.hook.ts          — shop-wide KPI rollup
 │   ├── use-put-customer.hook.ts
 │   └── use-preview-customer-code.hook.ts
 └── interface/
-    └── customer.interface.ts              — Customer / Populated / AddCustomer / FormTypes / Stats
+    └── customer.interface.ts              — Customer / Populated / AddCustomer / FormTypes / Stats / ContactPerson
+
+frontend/src/shared/hooks/use-debounced-value.hook.ts
+  └── generic useDebouncedValue(value, delay)
 
 frontend/src/pages/dashboard/customer/
 ├── all-customer.page.tsx        — list + KPIs + filters
@@ -494,9 +549,10 @@ frontend/src/shared/api/customer.api.ts   — REST client
 |---|---|---|
 | 1 | Schema + counter + indexes + DTO validation | ✅ shipped |
 | 2 | Stats hook + endpoints + list/detail/add/edit/delete pages + seeder | ✅ shipped |
-| 3 | Ledger tab, analytics charts, dedicated stats endpoints | 🔲 deferred |
+| 2b | Shop-wide stats endpoint, debounced server-side search + filters, alt-phones / alt-emails / contactPersons repeaters, compact modal form | ✅ shipped |
+| 3 | Ledger tab, analytics charts, additional stats endpoints (cohorts/RFM) | 🔲 deferred |
 | 4 | GSTIN portal lookup (proxy to `GstModule`) | 🔲 deferred |
-| 5 | CSV import/export, bulk actions, multi-currency UX, alt-contacts UI | 🔲 deferred |
+| 5 | CSV import/export, bulk actions, multi-currency UX, multi-shipping-address UI | 🔲 deferred |
 
 Test plan when revisiting:
 - Add → form auto-fills code; GSTIN entry auto-fills PAN/state code; submit → detail page.
