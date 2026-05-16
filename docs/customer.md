@@ -35,6 +35,7 @@ All schemas live under `backend/src/api/customer/schema/`.
 Grouped by purpose:
 
 #### Identity
+
 ```
 customerCode    String   auto: CUST/NNNN per shop
 name            String   display
@@ -44,6 +45,7 @@ status          enum     ACTIVE | INACTIVE | BLOCKED            default ACTIVE
 ```
 
 #### Contact
+
 ```
 phone               String   primary (E.164)
 alternatePhones     String[]                  repeater UI in form
@@ -58,6 +60,7 @@ profileImage        ObjectId → MediaMetadata
 ```
 
 #### GST & tax
+
 ```
 gstRegistrationType  enum     REGULAR | COMPOSITION | UNREGISTERED |
                               CONSUMER | SEZ_WITH_PAYMENT | SEZ_WITHOUT_PAYMENT |
@@ -71,6 +74,7 @@ isExempt               Boolean
 ```
 
 #### Addresses
+
 ```
 billingAddress              Location?
 shippingAddresses           Location[]   (multi-location B2B)
@@ -83,6 +87,7 @@ optional `addressLine2` and **`stateCode`** (2-digit Indian GST code) in
 addition to the original `address`, `country`, `state`, `city`, `pinCode`.
 
 #### Business terms
+
 ```
 creditLimit            Number   ₹, default 0
 creditPeriodDays       Number
@@ -93,6 +98,7 @@ currency               String   default "INR"
 ```
 
 #### CRM
+
 ```
 tags                String[]
 notes               String?
@@ -104,6 +110,7 @@ loyaltyPoints       Number
 ```
 
 #### Denormalized stats (recomputed by `OrderService` hook)
+
 ```
 stats: {
   totalOrders        Number
@@ -117,6 +124,7 @@ stats: {
 ```
 
 #### Tenant + audit
+
 ```
 shop        ObjectId → Shop  (required)
 createdBy   ObjectId → User
@@ -128,6 +136,7 @@ createdAt / updatedAt  (mongoose timestamps)
 ```
 
 ### Indexes
+
 ```
 { shop, phone }           unique
 { shop, gstin }           unique sparse (only when gstin is a string)
@@ -138,10 +147,12 @@ createdAt / updatedAt  (mongoose timestamps)
 ```
 
 ### `CustomerCounter` (`customer-counter.schema.ts`) — top-level
+
 ```
 shop        ObjectId → Shop  (unique)
 lastNumber  Number
 ```
+
 Drives `CUST/NNNN` codes via atomic `findOneAndUpdate(upsert, $inc)` —
 analog of `InvoiceCounter` in the order feature.
 
@@ -152,16 +163,16 @@ analog of `InvoiceCounter` in the order feature.
 Controller: `backend/src/api/customer/customer.controller.ts`, base path
 `shop/:shopId/customer`.
 
-| Method | Path | Purpose |
-|---|---|---|
-| POST   | `/`                 | Create; auto-assigns `customerCode`, audits `createdBy`. Enforces unique phone per shop. |
-| PUT    | `/`                 | Upsert by phone (used by the in-modal quick-add on the order page). |
-| GET    | `/code/next`        | **Peek** the next `CUST/NNNN` for the Add form preview. Does not increment. |
-| GET    | `/stats`            | Shop-wide KPI rollup `{ totalCustomers, activeCustomers, withGstin, totalOutstanding }`. Single aggregation, used by the All Customers KPI cards. |
-| GET    | `/:customerId`      | Single customer, populated `profileImage`. Excludes soft-deleted. |
-| PATCH  | `/:customerId`      | Update; audits `updatedBy`. Errors `NotFound` if soft-deleted. |
-| POST   | `/paginated`        | Paginated list + fuzzy search. Accepts `filter` (e.g. `{ status, type }`) and `includeDeleted` flag. |
-| DELETE | `/:customerId`      | Soft-delete by default; hard-delete iff `totalOrders === 0 && outstandingBalance === 0`. Audits `deletedBy`. |
+| Method | Path           | Purpose                                                                                                                                           |
+| ------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/`            | Create; auto-assigns `customerCode`, audits `createdBy`. Enforces unique phone per shop.                                                          |
+| PUT    | `/`            | Upsert by phone (used by the in-modal quick-add on the order page).                                                                               |
+| GET    | `/code/next`   | **Peek** the next `CUST/NNNN` for the Add form preview. Does not increment.                                                                       |
+| GET    | `/stats`       | Shop-wide KPI rollup `{ totalCustomers, activeCustomers, withGstin, totalOutstanding }`. Single aggregation, used by the All Customers KPI cards. |
+| GET    | `/:customerId` | Single customer, populated `profileImage`. Excludes soft-deleted.                                                                                 |
+| PATCH  | `/:customerId` | Update; audits `updatedBy`. Errors `NotFound` if soft-deleted.                                                                                    |
+| POST   | `/paginated`   | Paginated list + fuzzy search. Accepts `filter` (e.g. `{ status, type }`) and `includeDeleted` flag.                                              |
+| DELETE | `/:customerId` | Soft-delete by default; hard-delete iff `totalOrders === 0 && outstandingBalance === 0`. Audits `deletedBy`.                                      |
 
 ### Key services
 
@@ -169,6 +180,9 @@ Controller: `backend/src/api/customer/customer.controller.ts`, base path
   - Asserts phone uniqueness within shop.
   - `enrichDerivedFields()` fills in `pan` and `placeOfSupplyStateCode` from
     GSTIN when not supplied.
+  - Normalizes optional contact fields such as `email` and `gstin` so blank
+    values do not fail validation. This allows customer creation when either
+    email or GSTIN is omitted.
   - `customerCode` from `CustomerCodeService.generate()` if not supplied.
   - `createdBy`, `updatedBy` set from `@CurrentUser()`.
 
@@ -235,14 +249,14 @@ Four data sources today:
 
 ### GST filing data — what's stored & why
 
-| Filing artefact | Field(s) consulted |
-|---|---|
-| Tax Invoice header | `legalName`, `gstin`, `billingAddress` (with `stateCode`), `placeOfSupplyStateCode` |
-| GSTR-1 B2B (Table 4) | `gstin`, supplier vs. recipient state codes |
-| GSTR-1 B2CL (Table 5, inter-state >₹2.5L) | `billingAddress.stateCode` |
-| GSTR-1 Exports (6A/6B) | `gstRegistrationType: OVERSEAS_EXPORT/SEZ_*` |
-| E-invoice / IRN | Buyer GSTIN, legal name, full address with state code, pin |
-| E-way bill | full address + PAN + GSTIN + pin |
+| Filing artefact                           | Field(s) consulted                                                                  |
+| ----------------------------------------- | ----------------------------------------------------------------------------------- |
+| Tax Invoice header                        | `legalName`, `gstin`, `billingAddress` (with `stateCode`), `placeOfSupplyStateCode` |
+| GSTR-1 B2B (Table 4)                      | `gstin`, supplier vs. recipient state codes                                         |
+| GSTR-1 B2CL (Table 5, inter-state >₹2.5L) | `billingAddress.stateCode`                                                          |
+| GSTR-1 Exports (6A/6B)                    | `gstRegistrationType: OVERSEAS_EXPORT/SEZ_*`                                        |
+| E-invoice / IRN                           | Buyer GSTIN, legal name, full address with state code, pin                          |
+| E-way bill                                | full address + PAN + GSTIN + pin                                                    |
 
 `enrichDerivedFields()` and the form's `useEffect` on `gstin` keep
 `pan`/`placeOfSupplyStateCode` consistent automatically.
@@ -253,12 +267,12 @@ Four data sources today:
 
 ### Page shells
 
-| Route | File | Notes |
-|---|---|---|
-| `/dashboard/customer/all` | `pages/dashboard/customer/all-customer.page.tsx` | Shop-wide KPI strip (driven by `/stats`), debounced server-side search (400 ms), server-side `status` / `type` filters, table with status / churn badges, row-click → detail, delete confirmation that reads live stats. Loading affordances: spinner inside the search input while pending/refetching, KPI skeleton pulses while stats load, thin `LinearProgress` over the table during background refetches. |
-| `/dashboard/customer/:customerId` | `pages/dashboard/customer/customer-detail.page.tsx` | Header with badges & KPIs; tabs `Overview` (contact / GST / addresses / terms / dates cards) and `Orders` (paginated, filtered by customer). |
-| `/dashboard/customer/add` | `pages/dashboard/customer/add-customer.page.tsx` | Wraps `<CustomerForm>`; on success → detail page. |
-| `/dashboard/customer/:customerId/edit` | `pages/dashboard/customer/edit-customer.page.tsx` | Loads existing customer, flattens populated `profileImage` to id before feeding form. |
+| Route                                  | File                                                | Notes                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/dashboard/customer/all`              | `pages/dashboard/customer/all-customer.page.tsx`    | Shop-wide KPI strip (driven by `/stats`), debounced server-side search (400 ms), server-side `status` / `type` filters, table with status / churn badges, row-click → detail, delete confirmation that reads live stats. Loading affordances: spinner inside the search input while pending/refetching, KPI skeleton pulses while stats load, thin `LinearProgress` over the table during background refetches. |
+| `/dashboard/customer/:customerId`      | `pages/dashboard/customer/customer-detail.page.tsx` | Header with badges & KPIs; tabs `Overview` (contact / GST / addresses / terms / dates cards) and `Orders` (paginated, filtered by customer).                                                                                                                                                                                                                                                                    |
+| `/dashboard/customer/add`              | `pages/dashboard/customer/add-customer.page.tsx`    | Wraps `<CustomerForm>`; on success → detail page.                                                                                                                                                                                                                                                                                                                                                               |
+| `/dashboard/customer/:customerId/edit` | `pages/dashboard/customer/edit-customer.page.tsx`   | Loads existing customer, flattens populated `profileImage` to id before feeding form.                                                                                                                                                                                                                                                                                                                           |
 
 ### Components (`features/customer/components/`)
 
@@ -314,6 +328,7 @@ Four data sources today:
 - `use-preview-customer-code.hook.ts` — GET `/code/next`, peeks next code.
 
 Shared:
+
 - `shared/hooks/use-debounced-value.hook.ts` — generic
   `useDebouncedValue(value, delay)` used by All Customers' search box
   (400 ms).
@@ -410,6 +425,7 @@ interface CustomerFormTypes extends AddCustomer {}
 
 `backend/src/scripts/seed-customers.ts` — populates a target shop with a
 realistic mix:
+
 - 60 % `INDIVIDUAL` (CONSUMER reg, walk-in/referral, no GSTIN)
 - 30 % `BUSINESS` with `REGULAR`/`COMPOSITION` GSTIN, credit terms, contact
   person, default discount, opening balance
@@ -420,10 +436,12 @@ Indian state pool ties `billingAddress.state` + `stateCode` +
 starting 6–9. GSTIN/PAN match the validator regex.
 
 Run:
+
 ```
 SHOP_ID=… TOKEN=… npx ts-node -r tsconfig-paths/register \
   src/scripts/seed-customers.ts
 ```
+
 (or edit the `SHOP_ID` / `TOKEN` constants at the top of the file).
 
 ---
@@ -468,6 +486,7 @@ SHOP_ID=… TOKEN=… npx ts-node -r tsconfig-paths/register \
 ## 10. File map (quick jump)
 
 Backend
+
 ```
 backend/src/api/customer/
 ├── customer.controller.ts          — REST surface
@@ -500,6 +519,7 @@ backend/src/scripts/seed-customers.ts
 ```
 
 Frontend
+
 ```
 frontend/src/features/customer/
 ├── components/
@@ -545,16 +565,17 @@ frontend/src/shared/api/customer.api.ts   — REST client
 
 ## 11. Phase status snapshot
 
-| Phase | Description | Status |
-|---|---|---|
-| 1 | Schema + counter + indexes + DTO validation | ✅ shipped |
-| 2 | Stats hook + endpoints + list/detail/add/edit/delete pages + seeder | ✅ shipped |
-| 2b | Shop-wide stats endpoint, debounced server-side search + filters, alt-phones / alt-emails / contactPersons repeaters, compact modal form | ✅ shipped |
-| 3 | Ledger tab, analytics charts, additional stats endpoints (cohorts/RFM) | 🔲 deferred |
-| 4 | GSTIN portal lookup (proxy to `GstModule`) | 🔲 deferred |
-| 5 | CSV import/export, bulk actions, multi-currency UX, multi-shipping-address UI | 🔲 deferred |
+| Phase | Description                                                                                                                              | Status      |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1     | Schema + counter + indexes + DTO validation                                                                                              | ✅ shipped  |
+| 2     | Stats hook + endpoints + list/detail/add/edit/delete pages + seeder                                                                      | ✅ shipped  |
+| 2b    | Shop-wide stats endpoint, debounced server-side search + filters, alt-phones / alt-emails / contactPersons repeaters, compact modal form | ✅ shipped  |
+| 3     | Ledger tab, analytics charts, additional stats endpoints (cohorts/RFM)                                                                   | 🔲 deferred |
+| 4     | GSTIN portal lookup (proxy to `GstModule`)                                                                                               | 🔲 deferred |
+| 5     | CSV import/export, bulk actions, multi-currency UX, multi-shipping-address UI                                                            | 🔲 deferred |
 
 Test plan when revisiting:
+
 - Add → form auto-fills code; GSTIN entry auto-fills PAN/state code; submit → detail page.
 - Order create → customer `stats` increments in DB.
 - Soft-delete an empty customer → row disappears from list; check DB shows `isDeleted`.

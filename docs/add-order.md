@@ -26,6 +26,7 @@ Invoice`, `Retail Invoice`) and switches automatically between intra-state
 All schemas live under `backend/src/api/orders/schema/`.
 
 ### `Order` (`order.schema.ts`)
+
 ```
 invoiceId       String  unique
 customer        ObjectId → Customer
@@ -41,6 +42,7 @@ createdAt/updatedAt  (mongoose timestamps)
 ```
 
 ### `OrderItem` (`order-item.schema.ts`) — embedded
+
 ```
 product       ObjectId → Product
 quantity      Number
@@ -51,6 +53,7 @@ totalPrice    Number  min 0       — taxableValue + tax
 ```
 
 ### `BillingDetails` (`billing-details.schema.ts`) — embedded
+
 ```
 subTotal      Number  min 0       — Σ(sellPrice × qty), pre-discount
 discounts     Number  min 0       — item discounts + order discount
@@ -61,6 +64,7 @@ finalAmount   Number  min 0       — round(grandTotal)
 ```
 
 ### `PaymentDetails` (`payment.detail.schema.ts`) — embedded
+
 ```
 paymentMethod  enum PaymentMethod   (Cash, UPI, …)
 status         enum PaymentStatus   (Pending, Paid, …)
@@ -75,6 +79,7 @@ paymentDate    Date
 > otherwise.
 
 ### `TaxDetail` (`tax-detail.schema.ts`) — embedded
+
 ```
 type    enum TaxType (CGST | SGST | IGST | CESS)
 rate    Number  (percentage)
@@ -82,11 +87,13 @@ amount  Number
 ```
 
 ### `InvoiceCounter` (`invoice-counter.schema.ts`) — top-level
+
 ```
 shop           ObjectId → Shop
 financialYear  String  e.g. "25-26"
 lastNumber     Number
 ```
+
 Unique index on `(shop, financialYear)`. Drives `INV/YY-YY/NNNN` invoice IDs.
 
 ---
@@ -96,15 +103,15 @@ Unique index on `(shop, financialYear)`. Drives `INV/YY-YY/NNNN` invoice IDs.
 Controller: `backend/src/api/orders/order.controller.ts`, base path
 `shop/:shopId/order`, all routes require role `EMPLOYEE | ADMIN | MANAGER`.
 
-| Method | Path | Purpose |
-|---|---|---|
-| POST   | `/`                 | Create order. Auto-generates `invoiceId` if absent. Decrements stock atomically. |
-| POST   | `/paginated`        | Paginated list (populates `customer`). |
-| GET    | `/invoice-id/next`  | Peeks next invoice number for current shop+FY. **Does not increment.** |
-| GET    | `/:id`              | Raw order (IDs only, used by edit page). |
-| GET    | `/:id/populated`    | Order with `customer` + `items.product` populated (print page). |
-| PUT    | `/:id`              | Update an order. Throws `NotFoundException` if shop mismatch. |
-| DELETE | `/:id`              | Remove order. |
+| Method | Path               | Purpose                                                                          |
+| ------ | ------------------ | -------------------------------------------------------------------------------- |
+| POST   | `/`                | Create order. Auto-generates `invoiceId` if absent. Decrements stock atomically. |
+| POST   | `/paginated`       | Paginated list (populates `customer`).                                           |
+| GET    | `/invoice-id/next` | Peeks next invoice number for current shop+FY. **Does not increment.**           |
+| GET    | `/:id`             | Raw order (IDs only, used by edit page).                                         |
+| GET    | `/:id/populated`   | Order with `customer` + `items.product` populated (print page).                  |
+| PUT    | `/:id`             | Update an order. Throws `NotFoundException` if shop mismatch.                    |
+| DELETE | `/:id`             | Remove order.                                                                    |
 
 ### Key services
 
@@ -120,6 +127,9 @@ Controller: `backend/src/api/orders/order.controller.ts`, base path
      `Order` schema** — passing the user explicitly to the service keeps the
      auth side-effect out of the service contract.
   5. Persists the order.
+  6. The shop-wide order stats endpoint `/order/stats` is used by the All
+     Orders page and dashboard KPI cards so order totals are independent of the
+     visible paginated dataset.
 
 - **`InvoiceNumberService`** (`invoice-number.service.ts`)
   - Indian FY (Apr 1 – Mar 31). Format `INV/25-26/0042`.
@@ -192,12 +202,12 @@ moved to tax-inclusive, change only the `taxableValue`/`tax` formulas in
 
 ### Page shells
 
-| Route | File | Notes |
-|---|---|---|
-| `/dashboard/order/add` | `pages/dashboard/order/add-order.page.tsx` | Auto-fetches next invoice ID; on success, navigates to `/print`. |
-| `/dashboard/order/:orderId/edit` | `pages/dashboard/order/edit-order.page.tsx` | Uses **populated** endpoint and flattens `customer` → `customer._id` before feeding the form. No invoice-id auto-fill. |
+| Route                             | File                                         | Notes                                                                                                                                                                                                           |
+| --------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/dashboard/order/add`            | `pages/dashboard/order/add-order.page.tsx`   | Auto-fetches next invoice ID; on success, navigates to `/print`.                                                                                                                                                |
+| `/dashboard/order/:orderId/edit`  | `pages/dashboard/order/edit-order.page.tsx`  | Uses **populated** endpoint and flattens `customer` → `customer._id` before feeding the form. No invoice-id auto-fill.                                                                                          |
 | `/dashboard/order/:orderId/print` | `pages/dashboard/order/print-order.page.tsx` | Uses `/populated` endpoint. Forces white background regardless of theme via `bg-white` + negative margins that cancel the dashboard's `px-* py-*` padding. `print:` variants strip those for the physical page. |
-| `/dashboard/order/all` | `pages/dashboard/order/all-orders.page.tsx` | Has Print, Edit, Duplicate, Delete actions. Customer cell handles both `string` and populated `Customer` (paginated endpoint populates). |
+| `/dashboard/order/all`            | `pages/dashboard/order/all-orders.page.tsx`  | Has Print, Edit, Duplicate, Delete actions. Customer cell handles both `string` and populated `Customer` (paginated endpoint populates).                                                                        |
 
 ### Print isolation
 
@@ -254,9 +264,10 @@ moved to tax-inclusive, change only the `taxableValue`/`tax` formulas in
 - `payment-details.component.tsx` — Payment Method + Status via
   `SelectFieldControlled`, Payment Date via `DateFieldControlled`, Amount
   Paid via `TextFieldControlled` with `noSpinner`. Auto-fills `amountPaid =
-  finalAmount` when status becomes "Paid"; clears it on "Pending".
+finalAmount` when status becomes "Paid"; clears it on "Pending".
 
 `noSpinner` class (used to hide native number-input arrows):
+
 ```
 [appearance:textfield]
 [&::-webkit-outer-spin-button]:appearance-none
@@ -272,11 +283,11 @@ project-wide defaults (`borderRadius: 8px`, `className: w-full`) and **coerce
 `undefined → ""`** so a freshly-mounted controlled MUI input doesn't trip
 React's "uncontrolled → controlled" warning when the form value first lands.
 
-| Component | Purpose |
-|---|---|
-| `text-field-controlled.component.tsx` | Text / number / multiline inputs. |
-| `date-field-controlled.component.tsx` | `<input type="date">` that marshals between the form's ISO timestamp and the input's `YYYY-MM-DD` string. Defaults `inputLabel.shrink: true` (date inputs always show value/dashes). |
-| `select-field-controlled.component.tsx` | Generic dropdown. Pass `options` as `["A","B"]` or `[{ label, value }]`. Default selection comes from `useForm({ defaultValues })`. |
+| Component                               | Purpose                                                                                                                                                                              |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `text-field-controlled.component.tsx`   | Text / number / multiline inputs.                                                                                                                                                    |
+| `date-field-controlled.component.tsx`   | `<input type="date">` that marshals between the form's ISO timestamp and the input's `YYYY-MM-DD` string. Defaults `inputLabel.shrink: true` (date inputs always show value/dashes). |
+| `select-field-controlled.component.tsx` | Generic dropdown. Pass `options` as `["A","B"]` or `[{ label, value }]`. Default selection comes from `useForm({ defaultValues })`.                                                  |
 
 ### Hooks (`features/order/hooks/`)
 
@@ -295,15 +306,15 @@ React's "uncontrolled → controlled" warning when the form value first lands.
 ```ts
 // features/order/components/order-form.component.tsx
 interface OrderFormTypes {
-  invoiceId?:    string
-  customer?:     string        // _id only — never a populated object
-  invoiceType?:  InvoiceType
-  items:         OrderItemPopulated[]   // populated for UI rendering
-  description?:  string
-  orderDiscount?: number       // UI-only — folded into billing.discounts
-  orderDate?:    string        // ISO
-  billing:       Partial<BillingDetails>
-  payment:       Partial<PaymentDetails>
+  invoiceId?: string;
+  customer?: string; // _id only — never a populated object
+  invoiceType?: InvoiceType;
+  items: OrderItemPopulated[]; // populated for UI rendering
+  description?: string;
+  orderDiscount?: number; // UI-only — folded into billing.discounts
+  orderDate?: string; // ISO
+  billing: Partial<BillingDetails>;
+  payment: Partial<PaymentDetails>;
 }
 ```
 
@@ -350,30 +361,30 @@ When submitting, each item is mapped to `OrderItem` with `product: item.product.
 
 ## 7. Bugs fixed during the rebuild
 
-| Where | Fix |
-|---|---|
-| `order.service.ts` `updateOrder` | Inverted `if (existingOrder)` check → now `if (!existingOrder) throw NotFoundException`. |
-| `billing-details.dto.ts` | `@IsPositive` (excludes 0) → `@Min(0)`. `roundOff` no longer `@IsPositive` (can be negative). |
-| `order-item.dto.ts` | `discount`, `taxableValue`, `totalPrice` → `@Min(0)`. |
-| `tax-detail.dto.ts` | Same — `@Min(0)`. |
-| `payment.detail.schema.ts` | Removed `extends Document` from embedded subdoc. |
-| `order.schema.ts` | Added explicit `orderDate` field (defaults to now). |
-| `order-item-select-modal.tsx` | Was applying CGST **and** SGST **and** IGST simultaneously — fixed by letting `computeOrderTotals` decide based on state. |
-| Create order failing with `Order validation failed: billedBy: Path billedBy is required` | Added `@CurrentUser` decorator + threaded the user through `OrderController.create` → `OrderService.createOrder` → injected as `billedBy` on the persisted document. |
-| Items-mirror `useEffect` only compared `taxableValue`/`totalPrice` | When the customer state switched (CGST+SGST ↔ IGST) leaving numerics equal, items array stayed stale while `billing.taxes` updated — payload had mismatched item taxes vs. billing. Now also deep-compares each line's `taxes[]` (type + rate + amount + length). |
-| Print page printed the dashboard sidebar/header on the paper | `DashboardLayout` wraps both in `print:hidden` and strips `h-screen overflow-hidden` constraints under `print:`. |
-| Print page rendered with dark theme in dark mode | Outer wrapper forces `bg-white text-gray-900` and negative margins eat the dashboard's content padding so the white extends edge-to-edge regardless of global theme. |
-| All-orders page crashed with "Objects are not valid as a React child" | Paginated endpoint now populates `customer`; list cell checks for both `string` and populated `Customer` shapes. |
-| Edit page item rows came in blank with `key=NaN` warnings | Was using `useGetOrder` (non-populated); switched to `useGetOrderPopulated` and flatten `customer` → `customer._id` before feeding the form. Row key in `order-item-list` hardened to `${product?._id ?? "row"}-${idx}`. |
-| Customer dropdown taller than other inputs and unmatched border | Fixed `h-14`, single line (name only), `border-black/[0.23]` to match MUI's outlined input; phone moved to the `CustomerInfoChip`. |
-| Invoice ID floating label overlapped pre-filled value | `slotProps={{ inputLabel: { shrink: true } }}` (replaced deprecated `InputLabelProps`). |
-| MUI controlled-input warning ("uncontrolled → controlled") | `TextFieldControlled` (and the new `Select`/`Date` variants) coerce `field.value ?? ""` before rendering. |
+| Where                                                                                    | Fix                                                                                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `order.service.ts` `updateOrder`                                                         | Inverted `if (existingOrder)` check → now `if (!existingOrder) throw NotFoundException`.                                                                                                                                                                          |
+| `billing-details.dto.ts`                                                                 | `@IsPositive` (excludes 0) → `@Min(0)`. `roundOff` no longer `@IsPositive` (can be negative).                                                                                                                                                                     |
+| `order-item.dto.ts`                                                                      | `discount`, `taxableValue`, `totalPrice` → `@Min(0)`.                                                                                                                                                                                                             |
+| `tax-detail.dto.ts`                                                                      | Same — `@Min(0)`.                                                                                                                                                                                                                                                 |
+| `payment.detail.schema.ts`                                                               | Removed `extends Document` from embedded subdoc.                                                                                                                                                                                                                  |
+| `order.schema.ts`                                                                        | Added explicit `orderDate` field (defaults to now).                                                                                                                                                                                                               |
+| `order-item-select-modal.tsx`                                                            | Was applying CGST **and** SGST **and** IGST simultaneously — fixed by letting `computeOrderTotals` decide based on state.                                                                                                                                         |
+| Create order failing with `Order validation failed: billedBy: Path billedBy is required` | Added `@CurrentUser` decorator + threaded the user through `OrderController.create` → `OrderService.createOrder` → injected as `billedBy` on the persisted document.                                                                                              |
+| Items-mirror `useEffect` only compared `taxableValue`/`totalPrice`                       | When the customer state switched (CGST+SGST ↔ IGST) leaving numerics equal, items array stayed stale while `billing.taxes` updated — payload had mismatched item taxes vs. billing. Now also deep-compares each line's `taxes[]` (type + rate + amount + length). |
+| Print page printed the dashboard sidebar/header on the paper                             | `DashboardLayout` wraps both in `print:hidden` and strips `h-screen overflow-hidden` constraints under `print:`.                                                                                                                                                  |
+| Print page rendered with dark theme in dark mode                                         | Outer wrapper forces `bg-white text-gray-900` and negative margins eat the dashboard's content padding so the white extends edge-to-edge regardless of global theme.                                                                                              |
+| All-orders page crashed with "Objects are not valid as a React child"                    | Paginated endpoint now populates `customer`; list cell checks for both `string` and populated `Customer` shapes.                                                                                                                                                  |
+| Edit page item rows came in blank with `key=NaN` warnings                                | Was using `useGetOrder` (non-populated); switched to `useGetOrderPopulated` and flatten `customer` → `customer._id` before feeding the form. Row key in `order-item-list` hardened to `${product?._id ?? "row"}-${idx}`.                                          |
+| Customer dropdown taller than other inputs and unmatched border                          | Fixed `h-14`, single line (name only), `border-black/[0.23]` to match MUI's outlined input; phone moved to the `CustomerInfoChip`.                                                                                                                                |
+| Invoice ID floating label overlapped pre-filled value                                    | `slotProps={{ inputLabel: { shrink: true } }}` (replaced deprecated `InputLabelProps`).                                                                                                                                                                           |
+| MUI controlled-input warning ("uncontrolled → controlled")                               | `TextFieldControlled` (and the new `Select`/`Date` variants) coerce `field.value ?? ""` before rendering.                                                                                                                                                         |
 
 ---
 
 ## 8. Caveats & known follow-ups
 
-1. **Stock decrement isn't fully transactional across the *whole* create
+1. **Stock decrement isn't fully transactional across the _whole_ create
    call** — the per-product `$inc` is atomic, but if the order insert fails
    after stock has been decremented, stock isn't restored. Acceptable today
    because the insert is the very next step and rarely fails after stock
@@ -406,6 +417,7 @@ When submitting, each item is mapped to `OrderItem` with `product: item.product.
 ## 9. File map (quick jump)
 
 Backend
+
 ```
 backend/src/api/orders/
 ├── order.controller.ts             — REST surface
@@ -425,6 +437,7 @@ backend/src/shared/decorator/current-user.decorator.ts
 ```
 
 Frontend
+
 ```
 frontend/src/features/order/
 ├── components/
