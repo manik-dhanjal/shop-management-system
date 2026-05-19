@@ -277,7 +277,80 @@ Invite modal:
 └─────────────────────────────────────────────┘
 ```
 
-### 5.4 Header shop switcher
+### 5.4 Add / Edit Shop — `/dashboard/shop/add` · `/dashboard/shop/:id/edit`
+
+Two-column layout (`lg` breakpoint and above). Left column stacks Identity →
+GST & Tax → Address. Right column is the full-height Contact card. Preferences
+spans the full width below both columns.
+
+```
+┌─ Left column ───────────────────┐  ┌─ Right column (Contact) ────────┐
+│ ┌─ Identity ──────────────────┐ │  │                                  │
+│ │ Shop Name *    Status       │ │  │  Phone           Email           │
+│ │ ┌──────────┐  ┌──────────┐  │ │  │  ┌───────────┐  ┌───────────┐   │
+│ │ │          │  │ ACTIVE ▾ │  │ │  │  │ 🇮🇳 +91   │  │           │   │
+│ │ └──────────┘  └──────────┘  │ │  │  └───────────┘  └───────────┘   │
+│ │ Description                 │ │  │                                  │
+│ │ ┌─────────────────────────┐ │ │  │  Contact Person  Designation    │
+│ │ │                         │ │ │  │  ┌───────────┐  ┌───────────┐   │
+│ │ └─────────────────────────┘ │ │  │  │           │  │           │   │
+│ └─────────────────────────────┘ │  │  └───────────┘  └───────────┘   │
+│                                 │  │                                  │
+│ ┌─ GST & Tax ─────────────────┐ │  │  Alternate Phones               │
+│ │ GSTIN          Legal Name   │ │  │  [+91 9876 ✕] [+91 1234 ✕]      │
+│ │ ┌──────────┐  ┌──────────┐  │ │  │  [+ Add phone]                  │
+│ │ │          │  │          │  │ │  │  ↳ (input row appears on click) │
+│ │ └──────────┘  └──────────┘  │ │  │                                  │
+│ │ PAN            State        │ │  │  Alternate Emails               │
+│ │ ┌──────────┐  ┌──────────┐  │ │  │  [alt@co.in ✕] [other@co ✕]    │
+│ │ │          │  │          │  │ │  │  [+ Add email]                  │
+│ │ └──────────┘  └──────────┘  │ │  │  ↳ (input row appears on click) │
+│ └─────────────────────────────┘ │  │                                  │
+│                                 │  │  Additional Contact Persons      │
+│ ┌─ Address ───────────────────┐ │  │  [+ Add contact person]         │
+│ │ Address Line 1              │ │  │  ┌───────────────────────────┐  │
+│ │ ┌─────────────────────────┐ │ │  │  │ ▶ John Doe · Manager  🗑  │  │
+│ │ │                         │ │ │  │  ├───────────────────────────┤  │
+│ │ └─────────────────────────┘ │ │  │  │ ▼ Jane S · Director   🗑  │  │
+│ │ City   State   State code   │ │  │  │   Name     │ Designation  │  │
+│ │ ┌────┐ ┌────┐  ┌──────────┐ │ │  │  │   Phone    │ Email        │  │
+│ │ │    │ │    │  │          │ │ │  │  └───────────────────────────┘  │
+│ │ └────┘ └────┘  └──────────┘ │ │  └──────────────────────────────────┘
+│ │ Country    Pin Code         │ │
+│ │ ┌────────┐ ┌──────────┐    │ │
+│ │ │India ▾ │ │          │    │ │
+│ │ └────────┘ └──────────┘    │ │
+│ └─────────────────────────────┘ │
+└─────────────────────────────────┘
+
+┌─ Preferences (full width) ──────────────────────────────────────┐
+│  Currency          Timezone              Billing Email           │
+│  ┌──────────────┐  ┌──────────────────┐  ┌───────────────────┐  │
+│  │ INR        ▾ │  │ Asia/Kolkata   ▾ │  │                   │  │
+│  └──────────────┘  └──────────────────┘  └───────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+
+                                                    [Save Changes]
+```
+
+**Alternate phone/email chips** — inline chips with inline add flow:
+```
+[chip ✕]  [chip ✕]  [+ Add phone]
+                        ↓ on click
+[________________________]  [Add]  [Cancel]
+```
+
+**Contact person accordion** — collapsed row / expanded row:
+```
+▶  John Doe · Manager                          [🗑]   ← collapsed
+▼  Jane Smith · Director                       [🗑]   ← expanded
+   Name [__________]   Designation [__________]
+   Phone [🇮🇳 +91 ___]  Email [________________]
+```
+
+On screens narrower than `lg`, all five cards stack into a single column.
+
+### 5.5 Header shop switcher
 
 ```
 ┌─ 🏪 Demo Shop ▾ ─────────┐
