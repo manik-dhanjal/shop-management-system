@@ -1,0 +1,1 @@
+{"nodes": [{"id": "backend_app_service_app_service", "label": "AppService", "file_type": "code", "source_file": "backend/src/app.service.ts", "source_location": "line 4", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

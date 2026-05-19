@@ -1,0 +1,1 @@
+{"nodes": [{"id": "pipes_file_validator_pipe_filevalidatorpipe", "label": "FileValidatorPipe", "file_type": "code", "source_file": "backend/src/shared/pipes/file-validator.pipe.ts", "source_location": "line 4", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

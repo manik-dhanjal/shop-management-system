@@ -1,0 +1,1 @@
+{"nodes": [{"id": "shop_hooks_use_update_member_role_hook_useupdatememberroles", "label": "useUpdateMemberRoles hook", "file_type": "code", "source_file": "frontend/src/features/shop/hooks/use-update-member-role.hook.ts", "source_location": "line 7", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

@@ -1,0 +1,1 @@
+{"nodes": [{"id": "enum_shop_kind_enum_shopkind", "label": "ShopKind", "file_type": "code", "source_file": "backend/src/api/shop/enum/shop-kind.enum.ts", "source_location": "line 9", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

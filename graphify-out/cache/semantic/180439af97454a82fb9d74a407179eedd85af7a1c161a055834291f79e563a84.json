@@ -1,0 +1,1 @@
+{"nodes": [{"id": "enum_resource_type_enum_resourcetype", "label": "ResourceType", "file_type": "code", "source_file": "backend/src/api/media-storage/enum/resource-type.enum.ts", "source_location": "line 1", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

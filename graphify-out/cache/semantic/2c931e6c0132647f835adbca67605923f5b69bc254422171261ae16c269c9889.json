@@ -1,0 +1,1 @@
+{"nodes": [{"id": "customer_enum_payment_terms_enum_paymentterms", "label": "PaymentTerms", "file_type": "code", "source_file": "backend/src/api/customer/enum/payment-terms.enum.ts", "source_location": "line 1", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

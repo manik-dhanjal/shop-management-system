@@ -1,0 +1,1 @@
+{"nodes": [{"id": "paginated_supplier_query_dto_paginatedsupplierquerydto", "label": "PaginatedSupplierQueryDto", "file_type": "code", "source_file": "backend/src/api/supplier/dto/paginated-supplier-query.dto.ts", "source_location": "7-22", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

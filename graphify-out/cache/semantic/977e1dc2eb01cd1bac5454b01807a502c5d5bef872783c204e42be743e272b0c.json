@@ -1,0 +1,1 @@
+{"nodes": [{"id": "schema_billing_details_billingdetails", "label": "BillingDetails (schema)", "file_type": "code", "source_file": "backend/src/api/orders/schema/billing-details.schema.ts", "source_location": "class BillingDetails", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

@@ -1,0 +1,1 @@
+{"nodes": [{"id": "interfaces_public_pref_response_interface_gstpublicprefresponse", "label": "GstPublicPrefResponse", "file_type": "code", "source_file": "backend/src/api/gst/interfaces/public-pref-response.interface.ts", "source_location": "line 6", "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}
