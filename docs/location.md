@@ -1,6 +1,6 @@
-# Location — Feature Plan
+# Location — Feature Reference
 
-End-to-end plan for a backend-driven **location reference data** system
+End-to-end reference for the backend-driven **location reference data** system
 (countries, states, cities, pincodes) that:
 
 1. Powers Country / State / City / Pincode dropdowns across every form
@@ -13,8 +13,9 @@ End-to-end plan for a backend-driven **location reference data** system
    reference** to the canonical location records — not just denormalized
    strings — so jurisdiction-aware lookups never need fuzzy matching.
 
-Status: **planning** — no code written. Read this before starting any
-implementation work.
+Status: **shipped** — backend module, seed, and frontend components are live.
+Read this before touching any location dropdown, pincode field, or
+address-related form.
 
 ---
 
@@ -195,44 +196,56 @@ The cities endpoint **never returns more than 50** — frontend search drives na
 
 ```
 shared/api/location.api.ts
+  LocationApi.getCountries()
+  LocationApi.getStatesByCountry(countryCode)
+  LocationApi.getCitiesByState(countryCode, stateCode, q?, limit?)
+  LocationApi.lookupPincode(countryCode, pincode)        // 404 → null, not an error
+  LocationApi.getPincodesByCity(countryCode, cityId)     // returns string[] of codes
+
 features/location/hooks/
-  use-countries.hook.ts                                          // 1 call / session
+  use-countries.hook.ts                      — 1 call / session, 24h stale
   use-states-by-country.hook.ts(countryCode?)
-  use-cities-by-state.hook.ts(countryCode?, stateCode?, query?)  // 300ms debounce
-  use-pincode-lookup.hook.ts(countryCode?, pincode?)             // on blur
+  use-cities-by-state.hook.ts(countryCode?, stateCode?, query?)  — 300ms debounce
+  use-pincode-lookup.hook.ts(countryCode?, pincode?)     — enabled when pin ≥ 5 chars
+  use-city-pincodes.hook.ts(countryCode?, cityId?)       — full list for selected city
 ```
 
-TanStack Query with long `staleTime` (24h). City search debounced 300ms.
+TanStack Query with `staleTime: 10min` for location data. City search debounced 300ms, pincode lookup debounced 500ms.
 
 ### 7.2 Components (`shared/components/form/`)
 
-- `StateSelectControlled` — searchable MUI Autocomplete, disabled until country chosen.
-- `CitySelectControlled` — backend-driven search; `freeSolo` so user can type unknown cities.
-- `PincodeFieldControlled` — format + membership + reverse-lookup.
-
-All three: spinner in end-adornment while loading; soft fallback to plain TextField on network error.
+- **`CountrySelectControlled`** — static list of countries from `/countries`; defaults to India on mount if field is empty.
+- **`StateSelectControlled`** — searchable MUI Autocomplete, disabled until country is chosen.
+- **`CitySelectControlled`** — backend-driven search (`/cities?q=`); `freeSolo` so user can type unknown cities.
+- **`PincodeFieldControlled`** — `freeSolo` MUI Autocomplete. When a city is selected (`cityRef` set), the dropdown is populated from `/cities/:cityId/pincodes`. When no city is selected, the field is a plain editable text input. In both cases, typing a valid pincode (≥ 5 chars, 500ms debounce) triggers a reverse lookup and auto-fills city/state.
+- **`LocationFormSection`** — composite section that wires the four controls above, manages cascade resets, and exposes `onPincodeLookup` for parent forms to receive auto-fill results.
 
 ### 7.3 Cascade behavior
 
 ```
-Country ▾  →  State ▾  →  City ▾  →  Pincode [____]
+Country ▾  →  State ▾  →  City ▾  →  Pin Code [▾____]
                               ↑              │
-                              └── reverse-fills via /pincode/:p (India only)
+                              │    dropdown options from /cities/:cityId/pincodes
+                              └── reverse-fills city/state via /pincode/:p
 ```
 
-- Country change → clears state, city, pincode.
-- State change → clears city, pincode.
-- City change → keeps pincode if still valid; else clears.
+- Country change → clears state, stateCode, stateRef, city, cityRef, pinCode, address, addressLine2, countryRef.
+- State change → clears city, cityRef. Writes stateCode + stateRef.
+- City change → writes cityRef. Pin Code dropdown re-fetches options for new city.
+- Pincode lookup → auto-fills city, state, stateCode, cityRef if the pincode is found. If the pincode returns 404 (not in DB), nothing is overwritten — user can still submit.
 
-### 7.4 Pincode validation — three soft layers
+### 7.4 Pincode field — editable dropdown
 
-| Layer | Trigger | Result |
-|---|---|---|
-| Format | onChange | Red helper if `country.pincodeRegex` fails |
-| Membership | onBlur + city selected | Yellow warning if not in `city.pincodes[].code` |
-| Reverse lookup | onBlur + city empty | Auto-fill city/state if found |
+The `PincodeFieldControlled` component is a `freeSolo` MUI Autocomplete:
 
-All non-blocking — form still submits.
+| Situation | Behaviour |
+|---|---|
+| City selected (`cityRef` set) | Dropdown shows all pincodes for that city |
+| No city selected | No dropdown options; behaves as plain text input |
+| Pincode ≥ 5 chars typed or selected | Debounced reverse lookup; auto-fills state/city on hit |
+| Pincode not in DB (404) | Lookup returns `null`; no auto-fill; form still submits |
+
+The field always accepts free text — soft validation only, never blocks submit.
 
 ---
 
@@ -396,18 +409,15 @@ served from CDN for direct client search, or move reference data into Redis.
 
 ## 14. Phased delivery
 
-| Phase | Scope | Effort |
+| Phase | Scope | Status |
 |---|---|---|
-| **1. Backend foundation** | Schemas (with full GST fields from day one), gzipped seed files, location module, 5 endpoints, in-mem + LRU caches | large |
-| **2. Frontend primitives** | `location.api.ts`, 4 hooks, `StateSelectControlled` + `CitySelectControlled` + `PincodeFieldControlled` | medium |
-| **3. `Location` schema migration** | Add `countryRef` / `stateRef` / `cityRef` to shared `Location` schema + DTO; write backfill script | small |
-| **4. Shop form integration** | Wire components into `shop-edit-form`; remove `STATE_CODE_MAP`; GSTIN auto-fills country=IN + state name + ref | small |
-| **5. Customer + supplier forms** | Copy-paste pass into `customer-form` / `supplier-form` | small |
-| **6. (Optional)** | Replace static `CountrySelectControlled` with backend-driven version | tiny |
-| **7. (Future)** | Build `gst` module that consumes the refs — no schema changes needed | separate plan |
-
-Phases 1 + 2 are independent and can run in parallel.
-Phase 3's backfill must run **after** Phase 1's seed is loaded.
+| **1. Backend foundation** | Schemas (with full GST fields from day one), gzipped seed files, location module, 5 endpoints, in-mem + LRU caches | ✅ shipped |
+| **2. Frontend primitives** | `location.api.ts`, hooks, `StateSelectControlled` + `CitySelectControlled` + `PincodeFieldControlled` (freeSolo Autocomplete) + `use-city-pincodes` | ✅ shipped |
+| **3. `Location` schema migration** | `countryRef` / `stateRef` / `cityRef` added to shared `Location` schema + DTO | ✅ shipped |
+| **4. Shop form integration** | `LocationFormSection` wired into `shop-edit-form`; `cityRef` watched + passed to pincode field | ✅ shipped |
+| **5. Customer + supplier forms** | Wire `LocationFormSection` into customer + supplier edit forms | 🔲 deferred |
+| **6. (Optional)** | Replace static `CountrySelectControlled` with backend-driven version | 🔲 deferred |
+| **7. (Future)** | Build `gst` module that consumes the refs — no schema changes needed | 🔲 separate plan |
 
 ---
 
@@ -440,19 +450,22 @@ backend/src/scripts/
 
 Frontend
 ```
-frontend/src/shared/api/location.api.ts
+frontend/src/shared/api/location.api.ts        — 5 static methods incl. getPincodesByCity
+frontend/src/shared/interfaces/location.interface.ts
 frontend/src/features/location/
-├── hooks/
-│   ├── use-countries.hook.ts
-│   ├── use-states-by-country.hook.ts
-│   ├── use-cities-by-state.hook.ts
-│   └── use-pincode-lookup.hook.ts
-└── interface/location.interface.ts
+└── hooks/
+    ├── use-countries.hook.ts
+    ├── use-states-by-country.hook.ts
+    ├── use-cities-by-state.hook.ts
+    ├── use-pincode-lookup.hook.ts
+    └── use-city-pincodes.hook.ts              — full pincode list for a selected city
 
 frontend/src/shared/components/form/
+├── country-select-controlled.component.tsx
 ├── state-select-controlled.component.tsx
 ├── city-select-controlled.component.tsx
-└── pincode-field-controlled.component.tsx     — replaces plain TextField for pincode
+├── pincode-field-controlled.component.tsx     — freeSolo Autocomplete; city-aware dropdown
+└── location-form-section.component.tsx        — composite: wires all four controls
 ```
 
 Seed
@@ -480,19 +493,12 @@ docker/seed/data/
 
 ---
 
-## 17. Open questions before kickoff
+## 17. Known limitations & follow-ups
 
-Locked in:
-- ✅ All Indian cities + villages, top 5k world cities
-- ✅ Hybrid storage: refs + denormalized names
-- ✅ Soft pincode validation (warning, not block)
-- ✅ Pincode reverse-fills city/state when empty
-- ✅ GST metadata fields seeded from Phase 1
-
-Still open:
-1. **Seed file commit strategy** — gzipped in repo (~10 MB total) vs downloaded on first seed run?
-2. **Backfill aggressiveness** — case-insensitive name match only, or include fuzzy match (Levenshtein) for "Mumabi" → "Mumbai" typos?
-3. **GST jurisdiction seed (commissionerate/division/range)** — scrape now or leave nullable until GST module needs it?
-4. **Replace `CountrySelectControlled` in Phase 1** or defer to Phase 6?
-
-Once these are settled, Phase 1 can start.
+1. **Customer + supplier forms** still use plain `TextBox` for location — `LocationFormSection` not yet wired in (Phase 5 deferred).
+2. **Pincode reverse lookup is data-limited** — pincodes not in the local seed (e.g. small villages, recently-added codes) return 404 and skip auto-fill. The form still submits. Improve by expanding seed coverage, not by changing the component.
+3. **World cities limited to top 5k** — anything smaller, user types free-text; `cityRef` stays null.
+4. **`countryRef` is not set on new addresses** — `handleCountryChange` resets `countryRef` to `null` when the user changes country; it is not re-populated to the country's `_id`. Downstream ref joins must treat `null` countryRef gracefully.
+5. **GST fields dormant** — location metadata fields (`isSez`, `isUnionTerritory`, `eWayBillIntraThreshold`, etc.) are seeded and stored but unused by any current UI or business logic. They will be consumed by the future GST module.
+6. **No admin UI** for location data — managed by seed script + redeploy only.
+7. **Backfill script not yet run** — existing Shop/Customer/Supplier docs have `cityRef`/`stateRef`/`countryRef` as null; refs are only populated for records created after Phase 3 shipped.

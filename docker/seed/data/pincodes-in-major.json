@@ -1,0 +1,142 @@
+[
+  {"pincode":"400001","city":"Mumbai","stateCode":"27","officeType":"HO"},
+  {"pincode":"400051","city":"Bandra","stateCode":"27","officeType":"HO"},
+  {"pincode":"400607","city":"Thane","stateCode":"27","officeType":"HO"},
+  {"pincode":"400703","city":"Navi Mumbai","stateCode":"27","officeType":"HO"},
+  {"pincode":"411001","city":"Pune","stateCode":"27","officeType":"HO"},
+  {"pincode":"411014","city":"Pimpri","stateCode":"27","officeType":"HO"},
+  {"pincode":"422001","city":"Nashik","stateCode":"27","officeType":"HO"},
+  {"pincode":"440001","city":"Nagpur","stateCode":"27","officeType":"HO"},
+  {"pincode":"431001","city":"Aurangabad","stateCode":"27","officeType":"HO"},
+  {"pincode":"416001","city":"Kolhapur","stateCode":"27","officeType":"HO"},
+  {"pincode":"421301","city":"Ulhasnagar","stateCode":"27","officeType":"HO"},
+
+  {"pincode":"110001","city":"New Delhi","stateCode":"07","officeType":"HO"},
+  {"pincode":"110006","city":"Delhi","stateCode":"07","officeType":"HO"},
+  {"pincode":"110019","city":"Greater Kailash","stateCode":"07","officeType":"SO"},
+  {"pincode":"110045","city":"Janakpuri","stateCode":"07","officeType":"SO"},
+  {"pincode":"110092","city":"Shahdara","stateCode":"07","officeType":"HO"},
+
+  {"pincode":"201301","city":"Noida","stateCode":"09","officeType":"HO"},
+  {"pincode":"201010","city":"Ghaziabad","stateCode":"09","officeType":"HO"},
+  {"pincode":"226001","city":"Lucknow","stateCode":"09","officeType":"HO"},
+  {"pincode":"208001","city":"Kanpur","stateCode":"09","officeType":"HO"},
+  {"pincode":"282001","city":"Agra","stateCode":"09","officeType":"HO"},
+  {"pincode":"221001","city":"Varanasi","stateCode":"09","officeType":"HO"},
+  {"pincode":"211001","city":"Prayagraj","stateCode":"09","officeType":"HO"},
+  {"pincode":"250001","city":"Meerut","stateCode":"09","officeType":"HO"},
+  {"pincode":"243001","city":"Bareilly","stateCode":"09","officeType":"HO"},
+
+  {"pincode":"380001","city":"Ahmedabad","stateCode":"24","officeType":"HO"},
+  {"pincode":"390001","city":"Vadodara","stateCode":"24","officeType":"HO"},
+  {"pincode":"395001","city":"Surat","stateCode":"24","officeType":"HO"},
+  {"pincode":"360001","city":"Rajkot","stateCode":"24","officeType":"HO"},
+  {"pincode":"361001","city":"Jamnagar","stateCode":"24","officeType":"HO"},
+  {"pincode":"364001","city":"Bhavnagar","stateCode":"24","officeType":"HO"},
+
+  {"pincode":"560001","city":"Bengaluru","stateCode":"29","officeType":"HO"},
+  {"pincode":"560010","city":"Bengaluru","stateCode":"29","officeType":"SO"},
+  {"pincode":"560066","city":"Bengaluru","stateCode":"29","officeType":"SO"},
+  {"pincode":"575001","city":"Mangaluru","stateCode":"29","officeType":"HO"},
+  {"pincode":"580001","city":"Hubli","stateCode":"29","officeType":"HO"},
+  {"pincode":"570001","city":"Mysuru","stateCode":"29","officeType":"HO"},
+
+  {"pincode":"600001","city":"Chennai","stateCode":"33","officeType":"HO"},
+  {"pincode":"600020","city":"Chennai","stateCode":"33","officeType":"SO"},
+  {"pincode":"641001","city":"Coimbatore","stateCode":"33","officeType":"HO"},
+  {"pincode":"625001","city":"Madurai","stateCode":"33","officeType":"HO"},
+  {"pincode":"620001","city":"Tiruchirappalli","stateCode":"33","officeType":"HO"},
+  {"pincode":"627001","city":"Tirunelveli","stateCode":"33","officeType":"HO"},
+  {"pincode":"632001","city":"Vellore","stateCode":"33","officeType":"HO"},
+
+  {"pincode":"500001","city":"Hyderabad","stateCode":"36","officeType":"HO"},
+  {"pincode":"500003","city":"Hyderabad","stateCode":"36","officeType":"SO"},
+  {"pincode":"500082","city":"Secunderabad","stateCode":"36","officeType":"HO"},
+  {"pincode":"500081","city":"Hyderabad","stateCode":"36","officeType":"SO"},
+
+  {"pincode":"700001","city":"Kolkata","stateCode":"19","officeType":"HO"},
+  {"pincode":"700013","city":"Kolkata","stateCode":"19","officeType":"SO"},
+  {"pincode":"700091","city":"Kolkata","stateCode":"19","officeType":"SO"},
+  {"pincode":"711101","city":"Howrah","stateCode":"19","officeType":"HO"},
+
+  {"pincode":"302001","city":"Jaipur","stateCode":"08","officeType":"HO"},
+  {"pincode":"313001","city":"Udaipur","stateCode":"08","officeType":"HO"},
+  {"pincode":"342001","city":"Jodhpur","stateCode":"08","officeType":"HO"},
+  {"pincode":"324001","city":"Kota","stateCode":"08","officeType":"HO"},
+  {"pincode":"334001","city":"Bikaner","stateCode":"08","officeType":"HO"},
+
+  {"pincode":"462001","city":"Bhopal","stateCode":"23","officeType":"HO"},
+  {"pincode":"452001","city":"Indore","stateCode":"23","officeType":"HO"},
+  {"pincode":"482001","city":"Jabalpur","stateCode":"23","officeType":"HO"},
+  {"pincode":"474001","city":"Gwalior","stateCode":"23","officeType":"HO"},
+
+  {"pincode":"695001","city":"Thiruvananthapuram","stateCode":"32","officeType":"HO"},
+  {"pincode":"682001","city":"Kochi","stateCode":"32","officeType":"HO"},
+  {"pincode":"673001","city":"Kozhikode","stateCode":"32","officeType":"HO"},
+  {"pincode":"678001","city":"Palakkad","stateCode":"32","officeType":"HO"},
+  {"pincode":"680001","city":"Thrissur","stateCode":"32","officeType":"HO"},
+
+  {"pincode":"800001","city":"Patna","stateCode":"10","officeType":"HO"},
+  {"pincode":"842001","city":"Muzaffarpur","stateCode":"10","officeType":"HO"},
+  {"pincode":"823001","city":"Gaya","stateCode":"10","officeType":"HO"},
+
+  {"pincode":"141001","city":"Ludhiana","stateCode":"03","officeType":"HO"},
+  {"pincode":"143001","city":"Amritsar","stateCode":"03","officeType":"HO"},
+  {"pincode":"144001","city":"Jalandhar","stateCode":"03","officeType":"HO"},
+
+  {"pincode":"160017","city":"Chandigarh","stateCode":"04","officeType":"HO"},
+  {"pincode":"160001","city":"Chandigarh","stateCode":"04","officeType":"SO"},
+
+  {"pincode":"122001","city":"Gurgaon","stateCode":"06","officeType":"HO"},
+  {"pincode":"121001","city":"Faridabad","stateCode":"06","officeType":"HO"},
+  {"pincode":"132001","city":"Karnal","stateCode":"06","officeType":"HO"},
+
+  {"pincode":"530001","city":"Visakhapatnam","stateCode":"28","officeType":"HO"},
+  {"pincode":"520001","city":"Vijayawada","stateCode":"28","officeType":"HO"},
+  {"pincode":"522001","city":"Guntur","stateCode":"28","officeType":"HO"},
+
+  {"pincode":"751001","city":"Bhubaneswar","stateCode":"21","officeType":"HO"},
+  {"pincode":"753001","city":"Cuttack","stateCode":"21","officeType":"HO"},
+
+  {"pincode":"834001","city":"Ranchi","stateCode":"20","officeType":"HO"},
+  {"pincode":"831001","city":"Jamshedpur","stateCode":"20","officeType":"HO"},
+  {"pincode":"828001","city":"Dhanbad","stateCode":"20","officeType":"HO"},
+
+  {"pincode":"492001","city":"Raipur","stateCode":"22","officeType":"HO"},
+  {"pincode":"490001","city":"Durg","stateCode":"22","officeType":"HO"},
+  {"pincode":"495001","city":"Bilaspur","stateCode":"22","officeType":"HO"},
+
+  {"pincode":"781001","city":"Guwahati","stateCode":"18","officeType":"HO"},
+  {"pincode":"786001","city":"Dibrugarh","stateCode":"18","officeType":"HO"},
+
+  {"pincode":"171001","city":"Shimla","stateCode":"02","officeType":"HO"},
+  {"pincode":"176001","city":"Kangra","stateCode":"02","officeType":"HO"},
+
+  {"pincode":"248001","city":"Dehradun","stateCode":"05","officeType":"HO"},
+  {"pincode":"249401","city":"Rishikesh","stateCode":"05","officeType":"HO"},
+  {"pincode":"263001","city":"Nainital","stateCode":"05","officeType":"HO"},
+
+  {"pincode":"180001","city":"Jammu","stateCode":"01","officeType":"HO"},
+  {"pincode":"190001","city":"Srinagar","stateCode":"01","officeType":"HO"},
+
+  {"pincode":"403001","city":"Panaji","stateCode":"30","officeType":"HO"},
+  {"pincode":"403601","city":"Margao","stateCode":"30","officeType":"HO"},
+
+  {"pincode":"605001","city":"Puducherry","stateCode":"34","officeType":"HO"},
+
+  {"pincode":"744101","city":"Port Blair","stateCode":"35","officeType":"HO"},
+
+  {"pincode":"737101","city":"Gangtok","stateCode":"11","officeType":"HO"},
+
+  {"pincode":"799001","city":"Agartala","stateCode":"16","officeType":"HO"},
+  {"pincode":"795001","city":"Imphal","stateCode":"14","officeType":"HO"},
+  {"pincode":"793001","city":"Shillong","stateCode":"17","officeType":"HO"},
+  {"pincode":"797001","city":"Kohima","stateCode":"13","officeType":"HO"},
+  {"pincode":"796001","city":"Aizawl","stateCode":"15","officeType":"HO"},
+  {"pincode":"791001","city":"Itanagar","stateCode":"12","officeType":"HO"},
+
+  {"pincode":"246001","city":"Pauri","stateCode":"05","officeType":"HO"},
+  {"pincode":"396191","city":"Dadra","stateCode":"26","officeType":"HO"},
+  {"pincode":"396210","city":"Daman","stateCode":"26","officeType":"HO"},
+  {"pincode":"682555","city":"Kavaratti","stateCode":"31","officeType":"HO"}
+]

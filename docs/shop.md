@@ -373,7 +373,61 @@ On screens narrower than `lg`, all five cards stack into a single column.
 
 ---
 
-## 6. Caveats & known follow-ups
+## 6. Form validation & payload contract
+
+### 6.1 What the form collects vs what the schema stores
+
+`GstDetails` has 10 fields in the Mongoose schema. The `ShopEditForm`
+only shows — and therefore only submits — 4 of them:
+
+| Field | In form | Required by backend |
+|---|---|---|
+| `gstin` | ✅ | ✅ required |
+| `legalName` | ✅ | ✅ required |
+| `panCardNumber` | ✅ | ✅ required |
+| `state` | ✅ (auto-filled from GSTIN) | ✅ required |
+| `tradeName` | ✗ | ✗ optional |
+| `address` | ✗ | ✗ optional |
+| `registrationDate` | ✗ | ✗ optional |
+| `status` | ✗ | ✗ optional |
+| `username` | ✗ | ✗ optional |
+| `email` | ✗ | ✗ optional |
+
+The 6 hidden fields are populated by a future GST verification flow (e.g. calling the GST API with the GSTIN). Until that flow exists they remain absent from the DB. Their `@IsOptional()` in the DTO and `required: false` in the Mongoose schema reflect this intentional deferral.
+
+**Do not** re-add `required: true` / `@IsNotEmpty()` to those 6 fields without also adding form inputs for them.
+
+### 6.2 Payload sanitization (`ShopApi`)
+
+`ShopApi.addShop` and `ShopApi.updateShop` both call `sanitizeShopPayload()`
+before sending to the backend. It does two things:
+
+1. **Whitelist** — only the 19 keys present in `CreateShopDto` are sent.
+   Strips read-only / computed fields that come from the API response:
+   `_id`, `suppliers`, `isDeleted`, `deletedAt`, `createdAt`,
+   `updatedAt`, `myRoles`.
+2. **Drop empty-string emails** — `email` and `billingEmail` are
+   omitted (not sent as `""`) when the user leaves them blank.
+   The backend's `@IsEmail()` validator rejects `""`.
+
+This whitelist is defined once in `shop.api.ts` as `SHOP_WRITABLE_KEYS`.
+Update it if `CreateShopDto` gains new fields.
+
+### 6.3 Yup schema gotchas
+
+The `locationSchema` and `gstDetailsSchema` in `shop-edit-form.component.tsx`
+have several non-obvious rules:
+
+| Field | Why non-obvious |
+|---|---|
+| `location.stateCode` | `.matches(/^[0-9]{2}$/).optional()` would fail on `""`. A `.transform((v) => v \|\| undefined)` converts the empty string to `undefined` so `.optional()` passes. |
+| `location.countryRef` / `stateRef` | These are set to `null` (not `undefined`) by the cascade-reset handlers. `.nullable().optional()` is required — `.optional()` alone rejects `null`. |
+| `gstDetails.*` hidden fields | Marked `.optional()` in yup — they're absent from the submission and must not be `.required()`. |
+| `email` / `billingEmail` | Validated as email format. Empty string fails `@IsEmail()` on the backend, so they're stripped in `sanitizeShopPayload` rather than validated in yup. |
+
+---
+
+## 7. Caveats & known follow-ups
 
 1. **`ShopEditForm` name is now misleading** — it powers Add too.
    Renaming to `ShopForm` is blocked by the legacy `<ShopForm>` still
@@ -403,7 +457,7 @@ On screens narrower than `lg`, all five cards stack into a single column.
 
 ---
 
-## 7. File map (quick jump)
+## 8. File map (quick jump)
 
 Backend
 ```
@@ -421,7 +475,9 @@ backend/src/api/shop/
 └── schema/
     ├── shop.schema.ts        — kind, status, description, logo, currency,
     │                            timezone, billingEmail
-    └── gst-details.schema.ts
+    └── gst-details.schema.ts — address/state/registrationDate/status/username/email
+                                 are required:false (only gstin, legalName, panCardNumber,
+                                 tradeName are required/present in the edit form)
 ```
 
 Frontend
@@ -463,7 +519,9 @@ frontend/src/shared/enums/
 ├── shop-status.enum.ts       — new
 └── user-role.enum.ts         — new
 
-frontend/src/shared/api/shop.api.ts      — full surface (mine, stats, crud, members)
+frontend/src/shared/api/shop.api.ts      — full surface (mine, stats, crud, members);
+                                           sanitizeShopPayload() strips read-only fields
+                                           + empty emails before every POST/PATCH
 
 frontend/src/features/dashboard/components/
 ├── dashboard-header.component.tsx       — mounts <ShopSwitcher /> now
@@ -472,7 +530,7 @@ frontend/src/features/dashboard/components/
 
 ---
 
-## 8. Phase status snapshot
+## 9. Phase status snapshot
 
 | Phase | Description | Status |
 |---|---|---|
