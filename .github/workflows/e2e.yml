@@ -1,0 +1,144 @@
+name: E2E (Playwright)
+
+# See docs/e2e-test-plan.md §9.
+# Runs the frontend Playwright suite against the deployed dev/stage envs.
+
+on:
+  pull_request:
+    branches: [develop, stage, master]
+  schedule:
+    - cron: "0 2 * * *" # nightly 02:00 UTC — full suite
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        options: [dev, stage]
+        default: dev
+      tag:
+        description: "Tag filter (e.g. @smoke|@critical)"
+        type: string
+        default: "@smoke|@critical"
+      update_snapshots:
+        description: "Refresh visual baselines"
+        type: boolean
+        default: false
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: frontend
+
+env:
+  MOCK_EXTERNALS: "1"
+  WAKE_BACKEND: "1"
+
+jobs:
+  functional:
+    name: ${{ matrix.environment }} · ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # PRs run dev only; nightly/dispatch can fan out to stage too.
+        environment: ${{ github.event_name == 'pull_request' && fromJSON('["dev"]') || fromJSON('["dev","stage"]') }}
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run tests
+        env:
+          BASE_URL: ${{ matrix.environment == 'stage' && secrets.E2E_STAGE_BASE_URL || secrets.E2E_DEV_BASE_URL }}
+          API_URL: ${{ matrix.environment == 'stage' && secrets.E2E_STAGE_API_URL || secrets.E2E_DEV_API_URL }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+          GREP: ${{ github.event_name == 'pull_request' && '@smoke|@critical' || (inputs.tag || '@smoke|@critical|@full|@rbac') }}
+        run: npx playwright test --project=${{ matrix.browser }} --grep "$GREP"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-${{ matrix.environment }}-${{ matrix.browser }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+
+  mobile:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - env:
+          BASE_URL: ${{ secrets.E2E_DEV_BASE_URL }}
+          API_URL: ${{ secrets.E2E_DEV_API_URL }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        run: npx playwright test --project=mobile --grep @mobile
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: report-mobile, path: frontend/playwright-report/ }
+
+  a11y:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - env:
+          BASE_URL: ${{ secrets.E2E_DEV_BASE_URL }}
+          API_URL: ${{ secrets.E2E_DEV_API_URL }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        run: npx playwright test --project=a11y
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: report-a11y, path: frontend/playwright-report/ }
+
+  visual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: recursive }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run / update visual baselines
+        env:
+          BASE_URL: ${{ secrets.E2E_DEV_BASE_URL }}
+          API_URL: ${{ secrets.E2E_DEV_API_URL }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        run: npx playwright test --project=visual ${{ inputs.update_snapshots && '--update-snapshots' || '' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/

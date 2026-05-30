@@ -454,6 +454,10 @@ have several non-obvious rules:
 8. **Header switcher search is client-side only.** Fine for typical
    user counts (≤ 50 shops). If anyone ends up with hundreds, switch
    it to a `useMyShops(q)` call.
+9. **GSTIN verification not yet built.** The `GstDetails` schema stores
+   `verifiedAt`, `address`, `status`, `registrationDate`, etc. but
+   the form does not yet call the GST portal to populate them. Full
+   plan in `docs/gst-verification.md`.
 
 ---
 

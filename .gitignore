@@ -11,3 +11,5 @@ infra/*.tfplan
 #docker/seed
 /docker/seed/node_modules
 /docker/seed/package-lock.json
+
+/graphify-out/*
