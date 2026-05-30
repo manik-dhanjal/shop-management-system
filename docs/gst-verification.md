@@ -500,18 +500,50 @@ export const useVerifyGstOtp = (shopId: string) =>
 The GST & Tax section uses local state — not RHF — to drive the OTP flow:
 
 ```ts
-type GstVerifyState =
-  | { step: 'idle' }                         // no action yet
-  | { step: 'otp_sent' }                     // OTP requested, waiting for input
-  | { step: 'verifying' }                    // POST /gst/verify in flight
-  | { step: 'done' }                         // server wrote data; shop refetched
-  | { step: 'error'; message: string };
+type GstVerifyStep = 'idle' | 'otp_sent' | 'verifying' | 'done' | 'error';
 ```
+
+(`error` is rendered via a separate `gstVerifyError: string | null`; the step
+itself is the bare union above.)
 
 Seed from existing data on mount:
 ```ts
 const initialStep = initial.gstDetails?.verifiedAt ? 'done' : 'idle';
 ```
+
+**`verifiedGstDetails` — the freshly-verified record (race-condition fix).**
+`verifyOtpMutation.mutateAsync()` *returns* the normalised taxpayer record, and
+the hook's `onSuccess` then `invalidateQueries(['shop', shopId])` to refetch the
+shop. That refetch is **async** — so for a beat after `step` flips to `'done'`,
+`initial.gstDetails` still holds the *old* (unverified) data and the panel would
+read "Not yet verified". To avoid that flash, the form stores the mutation result:
+
+```ts
+const [verifiedGstDetails, setVerifiedGstDetails] =
+  useState<ShopGstDetails | null>(
+    initial.gstDetails?.verifiedAt ? initial.gstDetails : null,
+  );
+
+// in handleVerifyOtp:
+const result = await verifyOtpMutation.mutateAsync({ gstin, otp, email });
+if (result) setVerifiedGstDetails(result as ShopGstDetails);   // show panel NOW
+setGstVerifyStep('done');
+```
+
+The panel reads `verifiedGstDetails ?? initial.gstDetails ?? { gstin }`, so it
+renders the verified card immediately from the mutation result and falls back to
+the refetched shop (or a bare GSTIN) afterwards. It is cleared back to `null` when:
+- the user clicks **Re-verify**, and
+- the user edits the GSTIN away from `initialGstin.current` (the same effect that
+  resets `step` to `'idle'`).
+
+A companion effect re-seeds it from a later refetch when the shop comes back
+already-verified (`initial.gstDetails.verifiedAt` set but `verifiedGstDetails`
+still null), e.g. on first mount of an already-verified shop.
+
+> Without this, the "shows verified panel after OTP verify" e2e test was flaky:
+> the panel briefly showed the unverified state until the shop refetch landed.
+> See `docs/e2e-test-plan.md` and `frontend/e2e/gst-verification.spec.ts`.
 
 ### 6.4 Locked fields after verification
 
@@ -524,7 +556,9 @@ Because the locked fields are no longer registered in RHF, they are also
 no longer sent in the `PATCH` payload — which is intentional. The backend
 owns those values after verification; the frontend cannot overwrite them.
 
-The locked fields are shown in the `<GstVerifyPanel>` read-only card.
+The locked fields are shown in the `<GstVerifyPanel>` read-only card, which is
+fed `verifiedGstDetails ?? initial.gstDetails ?? { gstin }` (see §6.3) so it
+reflects the just-verified record without waiting for the shop refetch.
 
 ---
 
@@ -623,8 +657,9 @@ a convenience preview only — the authoritative value comes from the portal.
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-"Re-verify" resets to `step: 'idle'` and allows sending a new OTP.
-The verified panel disappears and `step: 'otp_sent'` is entered again on click.
+"Re-verify" resets to `step: 'idle'` (and clears `verifiedGstDetails`), allowing a
+new OTP to be sent. The verified panel disappears and `step: 'otp_sent'` is entered
+again once a fresh OTP is requested.
 
 ---
 
@@ -833,7 +868,9 @@ Frontend
 frontend/src/features/shop/interface/shop.interface.ts   — constitutionOfBusiness enum;
                                                             new fields on ShopGstDetails
 frontend/src/features/shop/components/shop-edit-form.component.tsx
-    — OTP state machine; locked-field rendering; remove locked TextFields after verify
+    — OTP state machine; locked-field rendering; remove locked TextFields after verify;
+      verifiedGstDetails state holds the mutation result so the panel renders the
+      verified card immediately (no flash of "Not yet verified" before refetch) — see §6.3
 frontend/src/shared/api/shop.api.ts             — requestGstOtp(), verifyGstOtp()
 ```
 

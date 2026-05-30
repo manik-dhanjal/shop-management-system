@@ -393,9 +393,17 @@ only shows — and therefore only submits — 4 of them:
 | `username` | ✗ | ✗ optional |
 | `email` | ✗ | ✗ optional |
 
-The 6 hidden fields are populated by a future GST verification flow (e.g. calling the GST API with the GSTIN). Until that flow exists they remain absent from the DB. Their `@IsOptional()` in the DTO and `required: false` in the Mongoose schema reflect this intentional deferral.
+The 6 hidden fields are populated by the **GST verification flow** (OTP-based
+GSTIN verification against the Whitebooks portal) — now **shipped**. After a
+successful verify the backend writes `legalName`, `panCardNumber`, `state`,
+`address`, `registrationDate`, `status` (plus `verifiedAt`, `constitutionOfBusiness`,
+`einvoiceApplicable`, `natureOfBusiness`) and locks them; they are no longer
+editable in the form. Full reference: [`docs/gst-verification.md`](gst-verification.md).
+The `@IsOptional()` in the DTO and `required: false` in the Mongoose schema remain
+because a shop may save its GSTIN before verifying.
 
-**Do not** re-add `required: true` / `@IsNotEmpty()` to those 6 fields without also adding form inputs for them.
+**Do not** re-add `required: true` / `@IsNotEmpty()` to those 6 fields — they are
+filled by verification, not by manual form inputs.
 
 ### 6.2 Payload sanitization (`ShopApi`)
 
@@ -454,10 +462,14 @@ have several non-obvious rules:
 8. **Header switcher search is client-side only.** Fine for typical
    user counts (≤ 50 shops). If anyone ends up with hundreds, switch
    it to a `useMyShops(q)` call.
-9. **GSTIN verification not yet built.** The `GstDetails` schema stores
-   `verifiedAt`, `address`, `status`, `registrationDate`, etc. but
-   the form does not yet call the GST portal to populate them. Full
-   plan in `docs/gst-verification.md`.
+9. ~~**GSTIN verification not yet built.**~~ **Shipped.** The OTP-based GSTIN
+   verification flow against the Whitebooks portal is live: "Send OTP" → enter
+   OTP → "Verify" writes `legalName`, `panCardNumber`, `state`, `address`,
+   `status`, `registrationDate`, `verifiedAt`, etc. and locks those fields. The
+   edit form holds the verify mutation result in `verifiedGstDetails` so the
+   read-only panel renders immediately (no refetch flash). Full reference:
+   `docs/gst-verification.md`. E2E coverage in
+   `frontend/e2e/gst-verification.spec.ts` (`docs/e2e-test-plan.md`).
 
 ---
 
