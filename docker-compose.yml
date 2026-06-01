@@ -2,16 +2,13 @@ services:
   mongodb:
     image: mongo:7
     container_name: sms-mongodb
+    command: ["mongod", "--quiet"]
+    logging:
+      driver: "none"
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
 
   seeder:
     build:
@@ -20,21 +17,26 @@ services:
     environment:
       MONGO_URL: mongodb://mongodb:27017/shop-management-system
     depends_on:
-      mongodb:
-        condition: service_healthy
+      - mongodb
     restart: "no"
 
   backend:
+    container_name: sms-backend
     build:
       context: ./backend
-    container_name: sms-backend
+      dockerfile: Dockerfile.local
+    command: npm run start:debug
     ports:
       - "3001:3000"
+      - "9229:9229" # Node.js debug port
+    env_file:
+      - .env
     environment:
       PORT: "3000"
       SMS_DB_URL: "mongodb://mongodb:27017/shop-management-system"
       MONGO_LOGGER_LEVEL: "info"
-      FRONTEND_URL: "http://localhost"
+      CHOKIDAR_USEPOLLING: "true"
+      FRONTEND_URL: "http://localhost:5173"
       CLOUDINARY_CLOUD_NAME: "${CLOUDINARY_CLOUD_NAME}"
       CLOUDINARY_API_KEY: "${CLOUDINARY_API_KEY}"
       CLOUDINARY_API_SECRET: "${CLOUDINARY_API_SECRET}"
@@ -42,27 +44,37 @@ services:
       USER_ACCESS_JWT_EXPIRES_IN: "5m"
       USER_REFRESH_JWT_EXPIRES_IN: "24h"
       USER_PASSWORD_SALT_ROUNDS: "10"
-      GST_BASE_URL: "${GST_BASE_URL:-https://api.whitebooks.in}"
+      GST_PROVIDER_BASE_URL: "${GST_PROVIDER_BASE_URL:-https://api.whitebooks.in}"
       GST_PROVIDER_CLIENT_ID: "${GST_PROVIDER_CLIENT_ID}"
       GST_PROVIDER_CLIENT_SECRET: "${GST_PROVIDER_CLIENT_SECRET}"
       GST_PROVIDER_IP_ADDRESS: "${GST_PROVIDER_IP_ADDRESS}"
       GST_REQUEST_TIMEOUT: "30000"
       GST_REQUEST_RETRY_ATTEMPTS: "3"
       GST_REQUEST_RETRY_DELAY: "1000"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/dist:/app/dist
+      - backend_node_modules:/app/node_modules
     depends_on:
-      mongodb:
-        condition: service_healthy
+      - mongodb
 
   frontend:
+    container_name: sms-frontend
     build:
       context: ./frontend
-      args:
-        VITE_API_URL: "http://localhost:3000"
-    container_name: sms-frontend
+      dockerfile: Dockerfile.local
+    command: npm run dev -- --host
     ports:
-      - "3000:80"
+      - "5173:5173"
+    environment:
+      VITE_API_URL: "http://localhost:3001"
+    volumes:
+      - ./frontend/src:/app/src
+      - frontend_node_modules:/app/node_modules
     depends_on:
       - backend
 
 volumes:
   mongodb_data:
+  backend_node_modules:
+  frontend_node_modules:

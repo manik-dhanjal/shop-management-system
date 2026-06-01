@@ -271,7 +271,7 @@ merged, renamed, or routed via the API during implementation — the spec files 
 - ☐ **@critical** edit name → save → persists (verify via reload).
 - ☐ **@full** save without GST details succeeds (no "GSTIN required").
 - ☐ **@full** non-admin sees amber permission banner (see RBAC §6.12).
-- GST OTP flows live in §6.11.
+- GST (manual entry) cases live in §6.11.
 
 **Team & Roles** (members):
 - ☐ **@critical** member table lists members with roles.
@@ -309,7 +309,7 @@ merged, renamed, or routed via the API during implementation — the spec files 
 - ☐ **@critical** edit price/stock → persists.
 - ☐ **@full** required validation (name).
 - ☐ **@full** numeric fields reject non-numeric / negative.
-- ☐ **@full** image picker (Cloudinary mocked in CI) — see §6.11.
+- ☐ **@full** image picker (Cloudinary mocked in CI via `helpers/mocks.ts`).
 - ☐ **@full** delete from row → confirm → row removed.
 
 ### 6.5 `customer.spec.ts` — customer master
@@ -446,28 +446,15 @@ Exercised through the **Shop Add/Edit Address** section (the form where
   changing state clears city.
 - ☐ **@full** pincode with no city selected → plain editable text input.
 
-### 6.11 `gst-verification.spec.ts` — GSTIN OTP flow (mocked)
+### 6.11 GST (manual entry) — covered in `shop.spec.ts`
 
-GST endpoints stubbed via `helpers/mocks.ts` (always in CI; locally too unless
-real Whitebooks creds + a real test GSTIN are provided). Built on the demo shop
-Edit page.
-- ☐ **@smoke** GST section renders GSTIN field + unverified warning.
-- ☐ **@critical** valid GSTIN → "Send OTP" enabled → click (stub 204) → OTP
-  input + Verify + Resend appear.
-- ☐ **@critical** verify (stub 200 taxpayer) → locked read-only panel
-  ("Verified from GST portal", legalName/PAN/state/status/etc.).
-- ☐ **@full** invalid GSTIN (<15 / bad format) → Send OTP disabled.
-- ☐ **@full** verify failure (stub 400) → "Invalid OTP" error.
-- ☐ **@full** GSTIN-not-found (stub 404) → "GSTIN not found" error.
-- ☐ **@full** service unavailable (stub 503) → "service unavailable" error.
-- ☐ **@full** after verify, locked fields are read-only (not inputs); only
-  GSTIN/username/email editable.
-- ☐ **@full** Re-verify resets to idle → new OTP cycle.
-- ☐ **@full** edit GSTIN after verifying → resets to idle, panel disappears.
-- ☐ **@full** Add Shop (no shopId) → "Save first to verify" hint, no Send OTP.
-- ☐ **@full** save form post-verify → PATCH payload omits locked fields
-  (intercept request, assert body only has `{gstin,username,email}` under gstDetails).
-- ☐ **@full** GSTIN already used by another shop → conflict error on save.
+GST is manual-entry only; the OTP verification flow (and its dedicated
+`gst-verification.spec.ts`) was removed. The GST cases now live in the
+"Edit Shop — GST & Tax section" block of `shop.spec.ts`:
+- ☐ **@full** GSTIN + manual fields (Legal Name / PAN / State) render; no
+  "Send OTP" button exists.
+- ☐ **@full** valid GSTIN auto-fills PAN (`gstin[2..12]`) + State.
+- ☐ **@full** shop saves without GST details (no "GSTIN required" error).
 
 ### 6.12 `rbac.spec.ts` — role permission boundaries `@rbac`
 
@@ -640,19 +627,7 @@ The **2 skips** (×3 browsers = 6) are intentional, not failures:
 - `responsive.spec.ts` "add shop form stacks into single column" — `test.skip()`s
   unless the viewport is `< lg` (1024px), so it only runs in the `mobile` project.
 
-### 12.2 Source bug the suite surfaced (fixed)
-
-The GST verify flow had a **race**: after OTP verify, `<GstVerifyPanel>` read
-`initial.gstDetails` (the *pre-verify* shop) until the `invalidateQueries` refetch
-landed, briefly showing "Not yet verified". Fixed in
-`shop-edit-form.component.tsx` by storing the verify **mutation result** in a new
-`verifiedGstDetails` state and feeding the panel
-`verifiedGstDetails ?? initial.gstDetails ?? { gstin }`. Full write-up in
-[`gst-verification.md`](gst-verification.md) §6.3. The corresponding spec
-(`gst-verification.spec.ts` + the legacy `shop.spec.ts` GST test) needs **no**
-shop-GET stub anymore — the panel renders straight from the mutation result.
-
-### 12.3 Selector / form deviations (don't regress these)
+### 12.2 Selector / form deviations (don't regress these)
 
 - **`TextBox` (login & signup pages) is not a real `<label htmlFor>`** — its
   `<label>` shares the same `id` as the input, so `getByLabel(/email/i)` fails.
@@ -683,7 +658,7 @@ shop-GET stub anymore — the panel renders straight from the mutation result.
   live) and pass it as an `Authorization` header. Confirms the guard returns
   **403** for wrong-role-on-known-shop and **404** for an unknown shop (§2).
 
-### 12.4 Backend payload requirements learned during setup
+### 12.3 Backend payload requirements learned during setup
 
 `api-client.ts` mirrors what the DTOs/schemas actually require:
 - **Register/Employee** need a non-empty `location` (`address/country/state/city/
@@ -695,7 +670,7 @@ shop-GET stub anymore — the panel renders straight from the mutation result.
   soft-deletes (200 + `isDeleted`) rather than hard-deletes (404) — the delete
   test accepts either.
 
-### 12.5 Visual baselines
+### 12.4 Visual baselines
 
 Baselines were generated **locally on macOS** and committed under
 `frontend/e2e/visual.spec.ts-snapshots/*-darwin.png`. Per §10.3 the **CI
@@ -703,7 +678,7 @@ Baselines were generated **locally on macOS** and committed under
 `--update-snapshots` before the visual job is allowed to gate. macOS-vs-Linux
 font diffs are expected.
 
-### 12.6 Signup caveat
+### 12.5 Signup caveat
 
 A real signup can't complete through the UI because the public `/signup` form
 omits the backend-required `location`. The `@critical` signup test therefore

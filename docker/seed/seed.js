@@ -90,11 +90,6 @@ const SupplierStatus = {
   BLOCKED: 'BLOCKED',
 };
 
-const GstStatus = {
-  ACTIVE: 'Active',
-  INACTIVE: 'Inactive',
-};
-
 // ---- reference data --------------------------------------------------------
 
 const INDIAN_STATES = [
@@ -388,13 +383,7 @@ const buildExternalSupplierShop = (now) => {
       ? {
           gstin,
           legalName: name.toUpperCase(),
-          tradeName: name,
-          address: `${faker.location.streetAddress()}, ${s.city}`,
           state: s.state,
-          registrationDate: faker.date.past({ years: 5 }),
-          status: GstStatus.ACTIVE,
-          username: faker.internet.userName(),
-          email: faker.internet.email(),
           panCardNumber: gstin.slice(2, 12),
         }
       : undefined,

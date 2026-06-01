@@ -377,33 +377,19 @@ On screens narrower than `lg`, all five cards stack into a single column.
 
 ### 6.1 What the form collects vs what the schema stores
 
-`GstDetails` has 10 fields in the Mongoose schema. The `ShopEditForm`
-only shows — and therefore only submits — 4 of them:
+`GstDetails` is **manual-entry only** — 4 fields, all collected by `ShopEditForm`:
 
-| Field | In form | Required by backend |
+| Field | In form | Backend |
 |---|---|---|
-| `gstin` | ✅ | ✅ required |
-| `legalName` | ✅ | ✅ required |
-| `panCardNumber` | ✅ | ✅ required |
-| `state` | ✅ (auto-filled from GSTIN) | ✅ required |
-| `tradeName` | ✗ | ✗ optional |
-| `address` | ✗ | ✗ optional |
-| `registrationDate` | ✗ | ✗ optional |
-| `status` | ✗ | ✗ optional |
-| `username` | ✗ | ✗ optional |
-| `email` | ✗ | ✗ optional |
+| `gstin` | ✅ | required (`@Length(15,15)`) |
+| `legalName` | ✅ | optional |
+| `panCardNumber` | ✅ (auto-filled from `gstin[2..12]`) | optional (`@Length(10,10)`) |
+| `state` | ✅ (auto-filled from `gstin[0..1]`) | optional |
 
-The 6 hidden fields are populated by the **GST verification flow** (OTP-based
-GSTIN verification against the Whitebooks portal) — now **shipped**. After a
-successful verify the backend writes `legalName`, `panCardNumber`, `state`,
-`address`, `registrationDate`, `status` (plus `verifiedAt`, `constitutionOfBusiness`,
-`einvoiceApplicable`, `natureOfBusiness`) and locks them; they are no longer
-editable in the form. Full reference: [`docs/gst-verification.md`](gst-verification.md).
-The `@IsOptional()` in the DTO and `required: false` in the Mongoose schema remain
-because a shop may save its GSTIN before verifying.
-
-**Do not** re-add `required: true` / `@IsNotEmpty()` to those 6 fields — they are
-filled by verification, not by manual form inputs.
+The OTP-based GSTIN verification flow that previously populated extra
+portal-derived fields was **removed** — GST is now whatever the admin types.
+Full reference: [`docs/gst-verification.md`](gst-verification.md). The generic
+`GstModule`/`GstAuthClient` is retained for a future rebuild.
 
 ### 6.2 Payload sanitization (`ShopApi`)
 
@@ -462,14 +448,11 @@ have several non-obvious rules:
 8. **Header switcher search is client-side only.** Fine for typical
    user counts (≤ 50 shops). If anyone ends up with hundreds, switch
    it to a `useMyShops(q)` call.
-9. ~~**GSTIN verification not yet built.**~~ **Shipped.** The OTP-based GSTIN
-   verification flow against the Whitebooks portal is live: "Send OTP" → enter
-   OTP → "Verify" writes `legalName`, `panCardNumber`, `state`, `address`,
-   `status`, `registrationDate`, `verifiedAt`, etc. and locks those fields. The
-   edit form holds the verify mutation result in `verifiedGstDetails` so the
-   read-only panel renders immediately (no refetch flash). Full reference:
-   `docs/gst-verification.md`. E2E coverage in
-   `frontend/e2e/gst-verification.spec.ts` (`docs/e2e-test-plan.md`).
+9. **GST is manual-entry.** An OTP-based GSTIN verification flow was built then
+   removed; the form now just collects `gstin`/`legalName`/`panCardNumber`/`state`
+   (PAN + state auto-fill from the GSTIN). Cross-shop GSTIN uniqueness is still
+   enforced. The generic `GstModule`/`GstAuthClient` (Whitebooks client) is
+   retained for a future rebuild. Full reference: `docs/gst-verification.md`.
 
 ---
 
